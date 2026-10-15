@@ -1,6 +1,5 @@
 module App.View exposing (view)
 
-import App.Commands as Commands
 import App.Edit as Edit
 import App.Model as Model exposing (Model, Route(..), Tool(..))
 import App.Msg exposing (Msg(..))
@@ -103,16 +102,18 @@ editor model =
     in
     div [ A.class "editor" ]
         [ Menus.menuBar model
-        , documentBar model
+        , toolbar model
         , div [ A.class "workspace" ]
-            [ toolRail model
-            , if e.leftCollapsed then
+            [ if e.leftCollapsed then
                 collapsedPanel "left" "Show layers panel"
 
               else
                 Layers.view model
             , div [ A.class "center" ]
-                [ CanvasView.view model
+                [ div [ A.class "viewer" ]
+                    [ documentTabs model
+                    , CanvasView.view model
+                    ]
                 , if e.timelineCollapsed then
                     collapsedPanel "timeline" "Show timeline"
 
@@ -146,37 +147,37 @@ collapsedPanel which label =
         ]
 
 
-documentBar : Model -> Html Msg
-documentBar model =
-    div [ A.class "docbar" ]
-        [ div [ A.class "doc-tabs", A.attribute "role" "tablist" ]
-            (List.filterMap
-                (\id ->
-                    Dict.get id model.documents
-                        |> Maybe.map
-                            (\open ->
-                                let
-                                    active =
-                                        model.activeDocument == Just id
-                                in
-                                div [ A.class "doc-tab", A.classList [ ( "active", active ) ], A.attribute "role" "tab", A.attribute "aria-selected" (iif active "true" "false") ]
-                                    [ button [ A.class "doc-tab-name", E.onClick (OpenDocumentTab id), A.title (Maybe.withDefault "Not saved to a file yet" open.fileName) ]
-                                        [ text open.document.metadata.name
-                                        , span [ A.class ("doc-dot " ++ statusClass open) ] []
-                                        ]
-                                    , button [ A.class "doc-tab-close", A.attribute "aria-label" ("Close " ++ open.document.metadata.name), E.onClick (CloseDocument id) ] [ Icons.icon "close" ]
+documentTabs : Model -> Html Msg
+documentTabs model =
+    div [ A.class "doc-tabs", A.attribute "role" "tablist" ]
+        (List.filterMap
+            (\id ->
+                Dict.get id model.documents
+                    |> Maybe.map
+                        (\open ->
+                            let
+                                active =
+                                    model.activeDocument == Just id
+                            in
+                            div [ A.class "doc-tab", A.classList [ ( "active", active ) ], A.attribute "role" "tab", A.attribute "aria-selected" (iif active "true" "false") ]
+                                [ button [ A.class "doc-tab-name", E.onClick (OpenDocumentTab id), A.title (Maybe.withDefault "Not saved to a file yet" open.fileName) ]
+                                    [ span [ A.class ("doc-dot " ++ statusClass open) ] []
+                                    , text open.document.metadata.name
                                     ]
-                            )
-                )
-                model.openOrder
+                                , button [ A.class "doc-tab-close", A.attribute "aria-label" ("Close " ++ open.document.metadata.name), E.onClick (CloseDocument id) ] [ Icons.icon "close" ]
+                                ]
+                        )
             )
-        , div [ A.class "docbar-actions" ]
-            [ saveStatus model
-            , button [ A.class "btn small", E.onClick SaveDocument, A.title "Save (Ctrl/Cmd+S)" ] [ Icons.icon "save", text "Save" ]
-            , button [ A.class "btn small", E.onClick OpenPreview, A.title "Preview (Ctrl/Cmd+Enter)" ] [ Icons.icon "play", text "Preview" ]
-            , button [ A.class "btn small primary", E.onClick OpenExport, A.title "Export (Ctrl/Cmd+E)" ] [ Icons.icon "export", text "Export" ]
-            ]
-        ]
+            model.openOrder
+            ++ [ case Model.activeScene model of
+                    Just scene ->
+                        span [ A.class "doc-tabs-meta" ]
+                            [ text (scene.name ++ " · " ++ String.fromFloat scene.width ++ " × " ++ String.fromFloat scene.height ++ " · " ++ Fps.toLabel scene.fps ++ " fps") ]
+
+                    Nothing ->
+                        text ""
+               ]
+        )
 
 
 statusClass : Model.OpenDocument -> String
@@ -238,8 +239,8 @@ saveStatus model =
                 ]
 
 
-toolRail : Model -> Html Msg
-toolRail model =
+toolbar : Model -> Html Msg
+toolbar model =
     let
         e =
             model.editor
@@ -259,28 +260,35 @@ toolRail model =
                 ]
                 [ Icons.icon icon ]
     in
-    div [ A.class "tool-rail", A.attribute "role" "toolbar", A.attribute "aria-label" "Tools", A.attribute "aria-orientation" "vertical" ]
-        [ tool SelectTool "select"
-        , tool DirectSelectTool "direct"
-        , div [ A.class "tool-sep" ] []
-        , tool PenTool "pen"
-        , tool RectTool "rect"
-        , tool EllipseTool "ellipse"
-        , tool LineTool "line"
-        , tool PolygonTool "polygon"
-        , tool StarTool "star"
-        , tool TextTool "text"
-        , button [ A.class "tool", A.title "Image (import)", A.attribute "aria-label" "Import image", E.onClick ImportImage ] [ Icons.icon "image" ]
-        , div [ A.class "tool-sep" ] []
-        , tool MotionPathTool "motion"
-        , tool PivotTool "pivot"
-        , div [ A.class "tool-sep" ] []
-        , tool HandTool "hand"
-        , tool ZoomTool "zoom"
-        , div [ A.class "tool-spacer" ] []
-        , UI.iconButton { icon = "grid", label = "Grid", active = e.showGrid, onClick = ToggleEditorFlag "grid", disabled = False }
-        , UI.iconButton { icon = "magnet", label = "Snap to grid", active = e.snapToGrid, onClick = ToggleEditorFlag "snapGrid", disabled = False }
-        , UI.iconButton { icon = "ruler", label = "Rulers", active = e.showRulers, onClick = ToggleEditorFlag "rulers", disabled = False }
+    div [ A.class "toolbar" ]
+        [ div [ A.class "tool-group", A.attribute "role" "toolbar", A.attribute "aria-label" "Tools" ]
+            [ tool SelectTool "select"
+            , tool DirectSelectTool "direct"
+            , tool HandTool "hand"
+            , tool ZoomTool "zoom"
+            , div [ A.class "tool-sep" ] []
+            , tool PenTool "pen"
+            , tool RectTool "rect"
+            , tool EllipseTool "ellipse"
+            , tool LineTool "line"
+            , tool PolygonTool "polygon"
+            , tool StarTool "star"
+            , tool TextTool "text"
+            , button [ A.class "tool", A.title "Image (import)", A.attribute "aria-label" "Import image", E.onClick ImportImage ] [ Icons.icon "image" ]
+            , div [ A.class "tool-sep" ] []
+            , tool MotionPathTool "motion"
+            , tool PivotTool "pivot"
+            , div [ A.class "tool-sep" ] []
+            , UI.iconButton { icon = "grid", label = "Grid", active = e.showGrid, onClick = ToggleEditorFlag "grid", disabled = False }
+            , UI.iconButton { icon = "magnet", label = "Snap to grid", active = e.snapToGrid, onClick = ToggleEditorFlag "snapGrid", disabled = False }
+            , UI.iconButton { icon = "ruler", label = "Rulers", active = e.showRulers, onClick = ToggleEditorFlag "rulers", disabled = False }
+            ]
+        , div [ A.class "toolbar-actions" ]
+            [ saveStatus model
+            , button [ A.class "btn ghost", E.onClick SaveDocument, A.title "Save (Ctrl/Cmd+S)" ] [ text "Save" ]
+            , button [ A.class "btn", E.onClick OpenPreview, A.title "Preview (Ctrl/Cmd+Enter)" ] [ Icons.icon "play", text "Preview" ]
+            , button [ A.class "btn primary", E.onClick OpenExport, A.title "Export (Ctrl/Cmd+E)" ] [ text "Export" ]
+            ]
         ]
 
 

@@ -113,4 +113,33 @@ test.describe("editor", () => {
     await page.getByRole("button", { name: /Opacity: add keyframe/ }).click();
     await expect.poll(() => trackListText(page)).toContain("Opacity");
   });
+  test("clicking a keyframe selects it without dragging it", async ({ page }) => {
+    await openApp(page);
+    await openExample(page, /Bouncing ball/);
+    const key = page.locator(".key").first();
+    const before = await key.getAttribute("title");
+    await key.click();
+    await expect(page.locator(".key.selected")).toHaveCount(1);
+    // moving away after the click must not carry the key along
+    const box = await page.locator(".timeline-tracks").boundingBox();
+    if (!box) throw new Error("no track area");
+    await page.mouse.move(box.x + box.width * 0.7, box.y + 30, { steps: 5 });
+    await expect(page.locator(".key").first()).toHaveAttribute("title", before ?? "");
+  });
+
+  test("dragging sideways on a value scrubs it", async ({ page }) => {
+    await openApp(page);
+    await newDocument(page);
+    await drawRect(page, [200, 200], [320, 280]);
+    const x = page.locator('input[aria-label="X"]').first();
+    const start = Number(await x.inputValue());
+    const box = await x.boundingBox();
+    if (!box) throw new Error("no X field");
+    await page.mouse.move(box.x + 6, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 6 + 33, box.y + box.height / 2, { steps: 11 });
+    await page.mouse.up();
+    await expect.poll(async () => Number(await x.inputValue())).toBeGreaterThan(start + 5);
+    await expect(x).not.toBeFocused();
+  });
 });

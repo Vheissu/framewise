@@ -4,7 +4,7 @@ A condensed version of the built-in help.
 
 ## Layout
 
-Menu bar, document tabs, tool rail on the left, layers/scenes/assets panel, canvas, inspector on the right, timeline below, status bar at the bottom. Panels resize by dragging their edges; View › Reset Workspace restores the defaults. Layout is remembered per browser, separately from documents.
+Menu bar and toolbar across the top (tools on the left; save status, Preview and Export on the right), the layers/scenes/assets panel, the canvas with its document tabs, the properties panel on the right, the timeline below and the status bar at the bottom. Layers carry a label colour that matches their bar in the timeline. Numeric values in the properties panel and timeline header can be dragged sideways to scrub them; Shift steps by ten, and a plain click edits the value as text. Panels resize by dragging their edges; View › Reset Workspace restores the defaults. Layout is remembered per browser, separately from documents.
 
 ## Tools
 

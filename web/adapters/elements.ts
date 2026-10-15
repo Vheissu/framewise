@@ -10,6 +10,10 @@ class RectHost extends HTMLElement {
   connectedCallback(): void {
     this.observer = new ResizeObserver(() => this.report());
     this.observer.observe(this);
+    // A ResizeObserver misses moves that keep the same size (a neighbouring
+    // panel growing while another shrinks), so measure again in the capture
+    // phase of every press, before Elm maps the pointer to canvas or frames.
+    this.addEventListener("pointerdown", this.onScroll, true);
     window.addEventListener("scroll", this.onScroll, true);
     window.addEventListener("resize", this.onScroll);
     requestAnimationFrame(() => this.report());
@@ -17,6 +21,7 @@ class RectHost extends HTMLElement {
 
   disconnectedCallback(): void {
     this.observer?.disconnect();
+    this.removeEventListener("pointerdown", this.onScroll, true);
     window.removeEventListener("scroll", this.onScroll, true);
     window.removeEventListener("resize", this.onScroll);
   }

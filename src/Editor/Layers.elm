@@ -19,6 +19,7 @@ import Json.Decode as D
 import Set
 import UI.Fields as Fields
 import UI.Icons as Icons
+import UI.Label as Label
 
 
 view : Model -> Html Msg
@@ -216,7 +217,7 @@ layerRow model scene matches depth id =
                     , E.onFocus (SetFocusContext Model.LayersFocus)
                     , clickHandler
                     ]
-                    [ div [ A.class "layer-main", A.style "padding-left" (String.fromInt (8 + depth * 14) ++ "px") ]
+                    [ div [ A.class "layer-main", A.style "padding-left" (String.fromInt (4 + depth * 14) ++ "px") ]
                         [ if hasChildren then
                             button
                                 [ A.class "disclosure"
@@ -240,6 +241,7 @@ layerRow model scene matches depth id =
 
                           else
                             span [ A.class "disclosure-spacer" ] []
+                        , span [ A.class "layer-label", Label.style id ] []
                         , span [ A.class "layer-icon", A.title (Node.kindLabel node.geometry) ] [ Icons.icon (kindIcon node.geometry) ]
                         , if renaming then
                             input

@@ -3,6 +3,7 @@ import { detectCapabilities } from "./adapters/capabilities";
 import { randomIds } from "./adapters/id";
 import { registerElements } from "./adapters/elements";
 import { registerHandlers } from "./adapters/handlers";
+import { enableScrubbing } from "./adapters/scrub";
 import * as storage from "./adapters/storage";
 
 declare const __APP_VERSION__: string;
@@ -56,6 +57,7 @@ async function boot(): Promise<void> {
   });
   const bridge = new Bridge(app.ports);
   registerHandlers(bridge);
+  enableScrubbing();
   wireWindowEvents(bridge);
   registerServiceWorker(bridge, base);
 }

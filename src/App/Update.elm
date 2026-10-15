@@ -625,7 +625,7 @@ update msg model =
             case ( view.timelineFitted, Model.activeScene m2 ) of
                 ( False, Just scene ) ->
                     if rect.width > 50 then
-                        pure (Edit.mapActiveView (\v -> { v | timelineFitted = True, timelinePixelsPerFrame = clamp 1 120 ((rect.width - 24) / toFloat (max 1 scene.durationFrames)) }) m2)
+                        pure (Edit.mapActiveView (\v -> { v | timelineFitted = True, timelinePixelsPerFrame = clamp 1 120 ((rect.width - 2 * Timeline.timeOrigin - 8) / toFloat (max 1 scene.durationFrames)) }) m2)
 
                     else
                         pure m2

@@ -232,7 +232,9 @@ paths name =
             [ Svg.circle [ A.cx "6", A.cy "8", A.r "4", A.opacity "0.5" ] [], Svg.circle [ A.cx "10", A.cy "8", A.r "4" ] [] ]
 
         "logo" ->
-            [ Svg.path [ A.d "M2.5 13.5 V2.5 H8.5 M2.5 8 H7 M10.5 13.5 L13.5 2.5", A.strokeWidth "2" ] [] ]
+            [ Svg.rect [ A.x "1.75", A.y "5.25", A.width "9", A.height "9", A.rx "1.5", A.opacity "0.55" ] []
+            , Svg.rect [ A.x "5.25", A.y "1.75", A.width "9", A.height "9", A.rx "1.5", A.fill "currentColor", A.stroke "none" ] []
+            ]
 
         "reverse" ->
             [ Svg.path [ A.d "M11 3 L3.5 8 L11 13 Z", A.fill "currentColor" ] [], Svg.path [ A.d "M13 3 V13" ] [] ]

@@ -28,6 +28,8 @@ import Html exposing (Html, button, div, input, span, text, textarea)
 import Html.Attributes as A
 import Html.Events as E
 import Json.Decode as D
+import Svg
+import Svg.Attributes as SA
 import UI.Fields as UI
 import UI.Icons as Icons
 import UI.Picker as Picker
@@ -55,6 +57,7 @@ view model =
     in
     div [ A.class "panel right-panel", A.style "width" (String.fromFloat e.rightWidth ++ "px") ]
         [ div [ A.class "splitter splitter-v", E.on "pointerdown" (D.map (SplitterDown "right") (D.field "clientX" D.float)), A.attribute "role" "separator", A.attribute "aria-orientation" "vertical" ] []
+        , div [ A.class "panel-tabs" ] [ span [ A.class "panel-tab active" ] [ text "Properties" ] ]
         , div [ A.class "panel-body inspector" ]
             [ body
             , keyframeInspector model
@@ -182,15 +185,19 @@ nodeInspector model scene node =
     in
     div []
         [ div [ A.class "inspector-header" ]
-            [ span [ A.class "inspector-kind" ] [ Icons.icon (kindIcon node.geometry), text (Node.kindLabel node.geometry) ]
-            , UI.textField model { id = "name", label = "Layer name", value = node.name, placeholder = "Layer name" }
+            [ div [ A.class "inspector-title" ]
+                [ span [ A.class "inspector-kind", A.title (Node.kindLabel node.geometry) ] [ Icons.icon (kindIcon node.geometry) ]
+                , UI.textField model { id = "name", label = "Layer name", value = node.name, placeholder = "Layer name" }
+                ]
             , div [ A.class "inspector-header-actions" ]
-                [ case parent of
+                [ span [ A.class "inspector-kind-label" ] [ text (Node.kindLabel node.geometry) ]
+                , case parent of
                     Just p ->
-                        button [ A.class "btn small", E.onClick SelectParent, A.title ("Select parent " ++ p.name) ] [ Icons.icon "arrow-up", text p.name ]
+                        button [ A.class "btn small ghost", E.onClick SelectParent, A.title ("Select parent " ++ p.name) ] [ Icons.icon "arrow-up", text p.name ]
 
                     Nothing ->
                         text ""
+                , span [ A.class "spacer" ] []
                 , UI.iconButton { icon = iif node.hidden "eye-off" "eye", label = iif node.hidden "Show" "Hide", active = node.hidden, onClick = SetHidden node.id (not node.hidden), disabled = False }
                 , UI.iconButton { icon = iif node.locked "lock" "unlock", label = iif node.locked "Unlock" "Lock", active = node.locked, onClick = SetLocked node.id (not node.locked), disabled = False }
                 , UI.iconButton { icon = "duplicate", label = "Duplicate", active = False, onClick = DuplicateSelection, disabled = False }
@@ -288,70 +295,84 @@ diamond model scene node property =
         text ""
 
 
-num : Model -> Scene -> Node -> String -> String -> Float -> String -> Maybe PropertyPath -> Html Msg
-num model scene node id label step unit property =
-    UI.numberField model
+{-| One property per row: keyframe toggle, label, then one or two values.
+-}
+propRow : String -> Html Msg -> List (Html Msg) -> Html Msg
+propRow label key values =
+    div [ A.class "prop-row", A.classList [ ( "pair", List.length values > 1 ) ] ]
+        [ span [ A.class "prop-key" ] [ key ]
+        , span [ A.class "prop-label" ] [ text label ]
+        , div [ A.class "prop-values" ] values
+        ]
+
+
+keyFor : Model -> Scene -> Node -> Maybe PropertyPath -> Html Msg
+keyFor model scene node property =
+    case property of
+        Just p ->
+            diamond model scene node p
+
+        Nothing ->
+            text ""
+
+
+field : Model -> String -> String -> String -> Float -> String -> Html Msg
+field model id ariaLabel shown step unit =
+    UI.numberFieldShort model
+        shown
         { id = id
-        , label = label
+        , label = ariaLabel
         , value = Fields.currentValue id model
         , step = step
         , unit = unit
-        , animated = Maybe.map (diamond model scene node) property
+        , animated = Nothing
         }
+
+
+propNum : Model -> Scene -> Node -> String -> String -> Float -> String -> Maybe PropertyPath -> Html Msg
+propNum model scene node id label step unit property =
+    propRow label (keyFor model scene node property) [ field model id label "" step unit ]
 
 
 transformSection : Model -> Scene -> Node -> Html Msg
 transformSection model scene node =
+    let
+        sizeProperty =
+            case node.geometry of
+                Rectangle _ ->
+                    Just RectSize
+
+                Ellipse _ ->
+                    Just EllipseRadii
+
+                _ ->
+                    Nothing
+    in
     UI.section model
         "node.transform"
         "Transform"
-        [ div [ A.class "field-grid two" ]
-            [ num model scene node "pos.x" "X" 1 "" (Just Position)
-            , num model scene node "pos.y" "Y" 1 "" Nothing
-            , num model scene node "size.w" "W" 1 "" sizeProperty
-            , num model scene node "size.h" "H" 1 "" Nothing
-            , num model scene node "rot" "Rotation" 1 "°" (Just Rotation)
-            , num model scene node "opacity" "Opacity" 1 "%" (Just Opacity)
-            , num model scene node "scale.x" "Scale X" 1 "%" (Just Scale)
-            , num model scene node "scale.y" "Scale Y" 1 "%" Nothing
-            , num model scene node "skew.x" "Skew X" 1 "°" (Just Skew)
-            , num model scene node "skew.y" "Skew Y" 1 "°" Nothing
-            , num model scene node "pivot.x" "Pivot X" 1 "" (Just Pivot)
-            , num model scene node "pivot.y" "Pivot Y" 1 "" Nothing
+        [ div [ A.class "prop-list" ]
+            [ propRow "Position" (keyFor model scene node (Just Position)) [ field model "pos.x" "X" "X" 1 "", field model "pos.y" "Y" "Y" 1 "" ]
+            , propRow "Size" (keyFor model scene node sizeProperty) [ field model "size.w" "W" "W" 1 "", field model "size.h" "H" "H" 1 "" ]
+            , propRow "Scale" (keyFor model scene node (Just Scale)) [ field model "scale.x" "Scale X" "X" 1 "%", field model "scale.y" "Scale Y" "Y" 1 "%" ]
+            , propNum model scene node "rot" "Rotation" 1 "°" (Just Rotation)
+            , propRow "Skew" (keyFor model scene node (Just Skew)) [ field model "skew.x" "Skew X" "X" 1 "°", field model "skew.y" "Skew Y" "Y" 1 "°" ]
+            , propRow "Pivot" (keyFor model scene node (Just Pivot)) [ field model "pivot.x" "Pivot X" "X" 1 "", field model "pivot.y" "Pivot Y" "Y" 1 "" ]
+            , propNum model scene node "opacity" "Opacity" 1 "%" (Just Opacity)
             ]
-        , div [ A.class "button-row" ]
-            [ button [ A.class "btn small", E.onClick (FlipSelection True), A.title "Flip horizontal" ] [ Icons.icon "flip-h" ]
-            , button [ A.class "btn small", E.onClick (FlipSelection False), A.title "Flip vertical" ] [ Icons.icon "flip-v" ]
-            , button [ A.class "btn small", E.onClick (ChooseTool Model.PivotTool), A.title "Move pivot" ] [ Icons.icon "pivot", text "Pivot" ]
-            , button [ A.class "btn small", E.onClick ResetTransform ] [ text "Reset" ]
+        , div [ A.class "button-row compact-row" ]
+            [ UI.iconButton { icon = "flip-h", label = "Flip horizontal", active = False, onClick = FlipSelection True, disabled = False }
+            , UI.iconButton { icon = "flip-v", label = "Flip vertical", active = False, onClick = FlipSelection False, disabled = False }
+            , UI.iconButton { icon = "pivot", label = "Move pivot", active = False, onClick = ChooseTool Model.PivotTool, disabled = False }
+            , span [ A.class "spacer" ] []
+            , button [ A.class "btn small ghost", E.onClick ResetTransform ] [ text "Reset transform" ]
             ]
-        , let
-            _ =
-                sizeProperty
-          in
-          case node.geometry of
-            Rectangle _ ->
-                text ""
-
-            Ellipse _ ->
-                text ""
-
-            _ ->
-                text ""
         ]
-        |> withSizeDiamond model scene node
 
 
-sizeProperty : Maybe PropertyPath
-sizeProperty =
-    Nothing
-
-
-{-| The W/H diamond depends on the node kind (RectSize or EllipseRadii).
--}
-withSizeDiamond : Model -> Scene -> Node -> Html Msg -> Html Msg
-withSizeDiamond _ _ _ html =
-    html
+convertButton : Html Msg
+convertButton =
+    div [ A.class "button-row" ] [ button [ A.class "btn small ghost", E.onClick ConvertToPath ] [ Icons.icon "path", text "Convert to Path" ] ]
 
 
 geometrySection : Model -> Scene -> Node -> Html Msg
@@ -361,58 +382,53 @@ geometrySection model scene node =
             UI.section model
                 "node.geometry"
                 "Rectangle"
-                [ div [ A.class "field-grid two" ]
-                    [ num model scene node "corner" "Corner" 1 "" (Just RectCornerRadius)
-                    , div [ A.class "num-field" ] [ span [ A.class "num-label" ] [ text "Size" ], span [ A.class "static-value" ] [ text "W × H above" ], diamond model scene node RectSize ]
-                    ]
-                , button [ A.class "btn small", E.onClick ConvertToPath ] [ Icons.icon "path", text "Convert to Path" ]
+                [ div [ A.class "prop-list" ] [ propNum model scene node "corner" "Corner" 1 "" (Just RectCornerRadius) ]
+                , convertButton
                 ]
 
         Ellipse _ ->
             UI.section model
                 "node.geometry"
                 "Ellipse"
-                [ div [ A.class "field-row" ] [ span [ A.class "field-label" ] [ text "Radii follow W × H" ], diamond model scene node EllipseRadii ]
-                , button [ A.class "btn small", E.onClick ConvertToPath ] [ Icons.icon "path", text "Convert to Path" ]
+                [ span [ A.class "hint" ] [ text "Radii follow the transform size." ]
+                , convertButton
                 ]
 
         Line _ ->
             UI.section model
                 "node.geometry"
                 "Line"
-                [ div [ A.class "field-grid two" ]
-                    [ num model scene node "line.x2" "End X" 1 "" Nothing
-                    , num model scene node "line.y2" "End Y" 1 "" Nothing
-                    ]
-                , button [ A.class "btn small", E.onClick ConvertToPath ] [ Icons.icon "path", text "Convert to Path" ]
+                [ div [ A.class "prop-list" ] [ propRow "End" (text "") [ field model "line.x2" "End X" "X" 1 "", field model "line.y2" "End Y" "Y" 1 "" ] ]
+                , convertButton
                 ]
 
         Polygon p ->
             UI.section model
                 "node.geometry"
                 (iif (p.innerRadius /= Nothing) "Star" "Polygon")
-                [ div [ A.class "field-grid two" ]
-                    ([ num model scene node "sides" "Sides" 1 "" Nothing
-                     , num model scene node "polyradius" "Radius" 1 "" Nothing
+                [ div [ A.class "prop-list" ]
+                    ([ propNum model scene node "sides" "Sides" 1 "" Nothing
+                     , propNum model scene node "polyradius" "Radius" 1 "" Nothing
                      ]
                         ++ (case p.innerRadius of
                                 Just _ ->
-                                    [ num model scene node "inner" "Inner" 1 "" Nothing ]
+                                    [ propNum model scene node "inner" "Inner" 1 "" Nothing ]
 
                                 Nothing ->
                                     []
                            )
                     )
-                , button [ A.class "btn small", E.onClick ConvertToPath ] [ Icons.icon "path", text "Convert to Path" ]
+                , convertButton
                 ]
 
         Path g ->
             UI.section model
                 "node.geometry"
                 "Path"
-                [ div [ A.class "field-row" ]
-                    [ span [ A.class "field-label" ] [ text (String.fromInt (Domain.Path.anchorCount g) ++ " anchors · " ++ String.fromInt (List.length g.subpaths) ++ " subpath" ++ iif (List.length g.subpaths == 1) "" "s") ]
-                    , diamond model scene node PathGeometryProp
+                [ div [ A.class "prop-list" ]
+                    [ propRow "Shape"
+                        (diamond model scene node PathGeometryProp)
+                        [ span [ A.class "prop-static" ] [ text (String.fromInt (Domain.Path.anchorCount g) ++ " anchors · " ++ String.fromInt (List.length g.subpaths) ++ " subpath" ++ iif (List.length g.subpaths == 1) "" "s") ] ]
                     ]
                 , div [ A.class "button-row" ]
                     [ button [ A.class "btn small", E.onClick (ChooseTool Model.DirectSelectTool) ] [ Icons.icon "direct", text "Edit anchors" ]
@@ -436,12 +452,12 @@ geometrySection model scene node =
                     , E.onBlur (FieldCommit "text.content")
                     ]
                     []
-                , div [ A.class "field-row" ] [ span [ A.class "field-label" ] [ text "Content" ], diamond model scene node TextContent ]
-                , UI.textField model { id = "font.family", label = "Font family", value = t.fontFamily, placeholder = "Font family" }
-                , div [ A.class "field-grid two" ]
-                    [ num model scene node "font.size" "Size" 1 "" (Just FontSize)
-                    , num model scene node "letter" "Tracking" 0.5 "" Nothing
+                , div [ A.class "prop-list" ]
+                    [ propRow "Content" (diamond model scene node TextContent) []
+                    , propNum model scene node "font.size" "Size" 1 "" (Just FontSize)
+                    , propNum model scene node "letter" "Tracking" 0.5 "" Nothing
                     ]
+                , UI.textField model { id = "font.family", label = "Font family", value = t.fontFamily, placeholder = "Font family" }
                 , div [ A.class "field-row" ]
                     [ UI.select "Weight" (String.fromInt t.fontWeight) [ ( "300", "Light" ), ( "400", "Regular" ), ( "500", "Medium" ), ( "600", "Semibold" ), ( "700", "Bold" ), ( "800", "Heavy" ) ] (SetTextOption node.id "weight")
                     , UI.select "Alignment" (Node.alignToCode t.align) [ ( "start", "Left" ), ( "middle", "Centre" ), ( "end", "Right" ) ] (SetTextOption node.id "align")
@@ -527,7 +543,8 @@ appearanceSection model scene node =
 
                   else
                     div [ A.class "field-row paint-row" ]
-                        [ UI.checkbox "Fill" (node.fill /= NoPaint) (SetNodeFill node.id)
+                        [ span [ A.class "prop-key" ] [ diamond model scene node FillColor ]
+                        , UI.checkbox "Fill" (node.fill /= NoPaint) (SetNodeFill node.id)
                         , case node.fill of
                             GradientPaint _ ->
                                 span [ A.class "hint" ] [ text "Gradient (imported)" ]
@@ -540,10 +557,10 @@ appearanceSection model scene node =
 
                             Nothing ->
                                 text ""
-                        , diamond model scene node FillColor
                         ]
                 , div [ A.class "field-row paint-row" ]
-                    [ UI.checkbox "Stroke" (node.stroke.paint /= NoPaint) (SetNodeStroke node.id)
+                    [ span [ A.class "prop-key" ] [ diamond model scene node StrokeColor ]
+                    , UI.checkbox "Stroke" (node.stroke.paint /= NoPaint) (SetNodeStroke node.id)
                     , Picker.swatchButton "Stroke colour" Model.StrokeTarget strokeColor
                     , case strokeColor of
                         Just c ->
@@ -551,16 +568,16 @@ appearanceSection model scene node =
 
                         Nothing ->
                             text ""
-                    , diamond model scene node StrokeColor
                     ]
                 , if node.stroke.paint == NoPaint then
                     text ""
 
                   else
                     div []
-                        [ div [ A.class "field-grid two" ]
-                            [ num model scene node "stroke.width" "Width" 0.5 "" (Just StrokeWidth)
-                            , num model scene node "miter" "Miter" 1 "" Nothing
+                        [ div [ A.class "prop-list" ]
+                            [ propNum model scene node "stroke.width" "Width" 0.5 "" (Just StrokeWidth)
+                            , propNum model scene node "miter" "Miter" 1 "" Nothing
+                            , propNum model scene node "dash.offset" "Dash offset" 1 "" (Just DashOffset)
                             ]
                         , div [ A.class "field-row" ]
                             [ UI.select "Line cap" (Paint.capToCode node.stroke.cap) [ ( "butt", "Butt cap" ), ( "round", "Round cap" ), ( "square", "Square cap" ) ] (SetStrokeOption node.id "cap")
@@ -570,8 +587,6 @@ appearanceSection model scene node =
                             [ span [ A.class "field-label" ] [ text "Dashes" ]
                             , UI.textField model { id = "dash.array", label = "Dash pattern", value = String.join " " (List.map Fields.displayValue node.stroke.dashArray), placeholder = "e.g. 6 4" }
                             ]
-                        , div [ A.class "field-grid two" ]
-                            [ num model scene node "dash.offset" "Offset" 1 "" (Just DashOffset) ]
                         ]
                 ]
 
@@ -608,9 +623,12 @@ effectsSection model scene node =
         "node.effects"
         "Effects"
         [ if hasBlur then
-            div [ A.class "field-row" ]
-                [ num model scene node "blur" "Blur" 0.5 "" (Just BlurRadius)
-                , button [ A.class "icon-button", A.title "Remove blur", A.attribute "aria-label" "Remove blur", E.onClick (SetEffect node.id "removeBlur") ] [ Icons.icon "close" ]
+            div [ A.class "prop-list" ]
+                [ propRow "Blur"
+                    (diamond model scene node BlurRadius)
+                    [ field model "blur" "Blur" "" 0.5 ""
+                    , button [ A.class "icon-button tiny", A.title "Remove blur", A.attribute "aria-label" "Remove blur", E.onClick (SetEffect node.id "removeBlur") ] [ Icons.icon "close" ]
+                    ]
                 ]
 
           else
@@ -671,8 +689,7 @@ motionControls model scene node =
         Just m ->
             [ div [ A.class "subsection" ]
                 [ span [ A.class "subsection-title" ] [ text ("Motion path: " ++ (Dict.get m.pathId scene.motionPaths |> Maybe.map .name |> Maybe.withDefault m.pathId)) ]
-                , div [ A.class "field-grid two" ]
-                    [ num model scene node "progress" "Progress" 1 "%" (Just MotionProgress) ]
+                , div [ A.class "prop-list" ] [ propNum model scene node "progress" "Progress" 1 "%" (Just MotionProgress) ]
                 , div [ A.class "field-row" ]
                     [ UI.checkbox "Orient to path" m.orient (SetMotionOrient node.id)
                     , button [ A.class "btn small", E.onClick (DetachMotionPath node.id) ] [ text "Detach" ]
@@ -959,22 +976,22 @@ easingEditor model easing =
                     )
 
         graph =
-            Html.node "svg"
-                [ A.attribute "viewBox" "-10 -30 120 160", A.class "easing-graph", A.attribute "aria-hidden" "true" ]
-                [ Html.node "rect" [ A.attribute "x" "0", A.attribute "y" "0", A.attribute "width" "100", A.attribute "height" "100", A.class "easing-box" ] []
-                , Html.node "polyline" [ A.attribute "points" (String.join " " samples), A.class "easing-curve" ] []
+            Svg.svg
+                [ SA.viewBox "-10 -30 120 160", SA.class "easing-graph", A.attribute "aria-hidden" "true" ]
+                [ Svg.rect [ SA.x "0", SA.y "0", SA.width "100", SA.height "100", SA.class "easing-box" ] []
+                , Svg.polyline [ SA.points (String.join " " samples), SA.class "easing-curve" ] []
                 , case easing of
                     CubicBezier x1 y1 x2 y2 ->
-                        Html.node "g"
+                        Svg.g
                             []
-                            [ Html.node "line" [ A.attribute "x1" "0", A.attribute "y1" "100", A.attribute "x2" (String.fromFloat (x1 * 100)), A.attribute "y2" (String.fromFloat (100 - y1 * 100)), A.class "easing-handle-line" ] []
-                            , Html.node "line" [ A.attribute "x1" "100", A.attribute "y1" "0", A.attribute "x2" (String.fromFloat (x2 * 100)), A.attribute "y2" (String.fromFloat (100 - y2 * 100)), A.class "easing-handle-line" ] []
-                            , Html.node "circle" [ A.attribute "cx" (String.fromFloat (x1 * 100)), A.attribute "cy" (String.fromFloat (100 - y1 * 100)), A.attribute "r" "4", A.class "easing-handle" ] []
-                            , Html.node "circle" [ A.attribute "cx" (String.fromFloat (x2 * 100)), A.attribute "cy" (String.fromFloat (100 - y2 * 100)), A.attribute "r" "4", A.class "easing-handle" ] []
+                            [ Svg.line [ SA.x1 "0", SA.y1 "100", SA.x2 (String.fromFloat (x1 * 100)), SA.y2 (String.fromFloat (100 - y1 * 100)), SA.class "easing-handle-line" ] []
+                            , Svg.line [ SA.x1 "100", SA.y1 "0", SA.x2 (String.fromFloat (x2 * 100)), SA.y2 (String.fromFloat (100 - y2 * 100)), SA.class "easing-handle-line" ] []
+                            , Svg.circle [ SA.cx (String.fromFloat (x1 * 100)), SA.cy (String.fromFloat (100 - y1 * 100)), SA.r "4", SA.class "easing-handle" ] []
+                            , Svg.circle [ SA.cx (String.fromFloat (x2 * 100)), SA.cy (String.fromFloat (100 - y2 * 100)), SA.r "4", SA.class "easing-handle" ] []
                             ]
 
                     _ ->
-                        text ""
+                        Svg.g [] []
                 ]
 
         fields =

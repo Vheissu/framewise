@@ -27,6 +27,7 @@ import Json.Decode as D
 import Set
 import UI.Fields as UI
 import UI.Icons as Icons
+import UI.Label as Label
 
 
 view : Model -> Html Msg
@@ -137,7 +138,14 @@ transport model scene =
                     Scene.PlayOnce
     in
     div [ A.class "transport", A.attribute "role" "toolbar", A.attribute "aria-label" "Playback" ]
-        [ div [ A.class "transport-group" ]
+        [ div [ A.class "time-display", A.style "width" (String.fromFloat (Timeline.trackListWidth - 8) ++ "px") ]
+            [ span [ A.class "timecode", A.title "Timecode" ] [ text (Fps.toTimecode scene.fps (round frame)) ]
+            , div [ A.class "time-sub" ]
+                [ UI.numberField model { id = "frame", label = "Frame", value = Just frame, step = 1, unit = "", animated = Nothing }
+                , span [ A.class "fps-badge", A.title "Frame rate and duration" ] [ text (Fps.toLabel scene.fps ++ " fps · " ++ String.fromInt scene.durationFrames ++ " f · " ++ Fields.displayValue (Fps.framesToSeconds scene.fps (toFloat scene.durationFrames)) ++ " s") ]
+                ]
+            ]
+        , div [ A.class "transport-group" ]
             [ UI.iconButton { icon = "skip-start", label = "Jump to start (Home)", active = False, onClick = SetPlayhead 0, disabled = False }
             , UI.iconButton { icon = "key-prev", label = "Previous keyframe (,)", active = False, onClick = JumpToKey -1, disabled = False }
             , UI.iconButton { icon = "step-back", label = "Previous frame (←)", active = False, onClick = StepFrame -1, disabled = False }
@@ -153,12 +161,6 @@ transport model scene =
             , UI.iconButton { icon = "step-forward", label = "Next frame (→)", active = False, onClick = StepFrame 1, disabled = False }
             , UI.iconButton { icon = "key-next", label = "Next keyframe (.)", active = False, onClick = JumpToKey 1, disabled = False }
             , UI.iconButton { icon = "skip-end", label = "Jump to end (End)", active = False, onClick = SetPlayhead (toFloat scene.durationFrames), disabled = False }
-            ]
-        , div [ A.class "transport-group" ]
-            [ UI.numberField model { id = "frame", label = "Frame", value = Just frame, step = 1, unit = "", animated = Nothing }
-            , span [ A.class "timecode", A.title "Timecode" ] [ text (Fps.toTimecode scene.fps (round frame)) ]
-            , span [ A.class "fps-badge", A.title "Frame rate" ] [ text (Fps.toLabel scene.fps ++ " fps") ]
-            , span [ A.class "duration-badge", A.title "Duration" ] [ text (String.fromInt scene.durationFrames ++ " f · " ++ Fields.displayValue (Fps.framesToSeconds scene.fps (toFloat scene.durationFrames)) ++ " s") ]
             ]
         , div [ A.class "transport-group" ]
             [ UI.iconButton { icon = loopIcon, label = "Loop mode: " ++ Scene.playbackModeToCode scene.playbackMode ++ " (click to change)", active = scene.playbackMode /= Scene.PlayOnce, onClick = SetLoopMode nextLoop, disabled = False }
@@ -188,7 +190,7 @@ fitMsg model scene =
             (Model.activeView model).timelinePixelsPerFrame
 
         target =
-            (width - 24) / toFloat (max 1 scene.durationFrames)
+            (width - 2 * Timeline.timeOrigin - 8) / toFloat (max 1 scene.durationFrames)
     in
     TimelineZoom (target / current)
 
@@ -269,7 +271,7 @@ dedupe =
 
 rowHeight : Float
 rowHeight =
-    26
+    22
 
 
 trackList : Model -> Scene -> Html Msg
@@ -285,7 +287,7 @@ trackList model scene =
             (Model.activeView model).selection
     in
     div [ A.class "track-list", A.style "width" (String.fromFloat Timeline.trackListWidth ++ "px") ]
-        [ div [ A.class "track-list-header" ] [ text "Layers & properties" ]
+        [ div [ A.class "track-list-header" ] [ span [] [ text "Layer" ], span [] [ text "Value" ] ]
         , if List.isEmpty allRows then
             div [ A.class "empty small" ] [ text "Select a layer and press K, or click a diamond in the inspector, to start animating." ]
 
@@ -302,7 +304,8 @@ trackList model scene =
                                     , A.attribute "role" "treeitem"
                                     , E.onClick (SelectNodes [ row.node.id ] False)
                                     ]
-                                    [ span [ A.class "track-node-name" ] [ text row.node.name ]
+                                    [ span [ A.class "layer-label", Label.style row.node.id ] []
+                                    , span [ A.class "track-node-name" ] [ text row.node.name ]
                                     , button [ A.class "icon-button tiny", A.title "Remove all animation", A.attribute "aria-label" ("Remove animation from " ++ row.node.name), UI.stopPropagation "click" (RemoveAllAnimation row.node.id) ] [ Icons.icon "trash" ]
                                     ]
 
@@ -402,7 +405,7 @@ trackArea model scene =
             view_.timelineScroll
 
         frameX f =
-            f * ppf - scroll
+            f * ppf - scroll + Timeline.timeOrigin
 
         duration =
             scene.durationFrames
@@ -462,7 +465,7 @@ trackArea model scene =
                                 , A.style "left" (px (frameX (toFloat k.frame)))
                                 , A.title (Property.pathLabel track.target.property ++ " @ " ++ String.fromInt k.frame ++ " · " ++ Domain.Easing.label k.easing)
                                 , A.attribute "aria-label" ("Keyframe at frame " ++ String.fromInt k.frame)
-                                , E.custom "pointerdown" (D.map (\ev -> { message = KeyPointerDown ref ev, stopPropagation = True, preventDefault = True }) pointerDecoder)
+                                , E.custom "pointerdown" (D.map (\ev -> { message = KeyPointerDown ref ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
                                 , E.custom "contextmenu" (D.succeed { message = NoOp, stopPropagation = True, preventDefault = True })
                                 , E.custom "click" (D.succeed { message = NoOp, stopPropagation = True, preventDefault = False })
                                 ]
@@ -488,7 +491,7 @@ trackArea model scene =
     in
     [ div
         [ A.class "ruler-row"
-        , E.custom "pointerdown" (D.map (\ev -> { message = TimelineRulerDown ev, stopPropagation = True, preventDefault = True }) pointerDecoder)
+        , E.custom "pointerdown" (D.map (\ev -> { message = TimelineRulerDown ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
         ]
         (workRange
             ++ List.map
@@ -503,11 +506,17 @@ trackArea model scene =
             (\row ->
                 div
                     [ A.class "track-lane"
-                    , A.classList [ ( "node-lane", row.property == Nothing ) ]
+                    , A.classList [ ( "node-lane", row.property == Nothing ), ( "selected", row.property == Nothing && List.member row.node.id view_.selection ) ]
                     , A.style "height" (px rowHeight)
                     ]
                     (div [ A.class "lane-end", A.style "left" (px (frameX (toFloat duration))) ] []
-                        :: segmentBars row
+                        :: (if row.property == Nothing then
+                                [ div [ A.class "layer-bar", Label.style row.node.id, A.style "left" (px (frameX 0)), A.style "width" (px (toFloat duration * ppf)) ] [] ]
+
+                            else
+                                []
+                           )
+                        ++ segmentBars row
                         ++ keysOf row
                     )
             )

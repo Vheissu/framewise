@@ -1,109 +1,130 @@
 /* Framewise design tokens.
-   Graphite surfaces with a warm grey tint and one burnt-orange accent, in the
-   tradition of desktop creative tools whose chrome recedes behind the work. */
+
+   Reference: the dark, dense chrome of desktop motion software (After Effects,
+   Rive). Panels sit as separate blocks on a near-black gutter, text is small
+   and numeric values are blue "hot text" you can drag. Colour is reserved for
+   meaning: blue for selection, values and the playhead, red for recording
+   (auto-key), and per-layer label colours in the layer list and timeline. */
 :root {
   --font-ui:
-    ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --fs-base: 13px;
-  --fs-small: 12px;
-  --fs-tiny: 11px;
-  --fs-large: 15px;
+  --fs-base: 12px;
+  --fs-small: 11px;
+  --fs-tiny: 10px;
+  --fs-large: 14px;
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
   --sp-4: 16px;
   --sp-5: 24px;
-  --radius: 6px;
-  --radius-small: 4px;
-  --row-h: 28px;
-  --control-h: 26px;
+  --radius: 4px;
+  --radius-small: 3px;
+  --row-h: 22px;
+  --control-h: 22px;
+  --gutter: 3px;
 
-  --bg-0: #1b1b1e;
-  --bg-1: #232326;
-  --bg-2: #2b2b2f;
-  --bg-3: #343439;
-  --bg-4: #3f3f45;
-  --line: #45454c;
-  --line-strong: #5a5a63;
-  --fg-0: #f1efe9;
-  --fg-1: #c9c6bf;
-  --fg-2: #8f8c85;
-  --fg-3: #65625c;
-  --accent: #e8862d;
-  --accent-strong: #ff9a3c;
-  --accent-text: #1b1b1e;
-  --accent-soft: rgba(232, 134, 45, 0.18);
-  --selection: #4ea6ff;
-  --selection-soft: rgba(78, 166, 255, 0.22);
-  --danger: #e0574a;
-  --warning: #e3b341;
-  --ok: #5fbf7a;
-  --key: #f0c24b;
-  --key-selected: #ffffff;
-  --checker-a: #2d2d31;
-  --checker-b: #38383d;
+  /* surfaces, darkest to lightest */
+  --bg-app: #0f0f10;
+  --bg-0: #161617;
+  --bg-1: #1e1e1f;
+  --bg-2: #262627;
+  --bg-3: #2f2f31;
+  --bg-4: #3a3a3c;
+  --bg-well: #131314;
+  --line: #2c2c2e;
+  --line-strong: #414144;
+  --fg-0: #e4e4e2;
+  --fg-1: #b9b9b6;
+  --fg-2: #8a8a87;
+  --fg-3: #5e5e5c;
+
+  /* blue: selection, hot values, playhead */
+  --accent: #3d8fe6;
+  --accent-strong: #5aa2f0;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(61, 143, 230, 0.16);
+  --hot: #59a8f5;
+  --selection: #3d8fe6;
+  --selection-soft: rgba(61, 143, 230, 0.2);
+  --row-selected: #24364a;
+  --record: #e5484d;
+  --danger: #e5484d;
+  --warning: #d9a53b;
+  --ok: #4fae74;
+  --key: #c9c9c6;
+  --key-selected: #59a8f5;
+  --checker-a: #222224;
+  --checker-b: #2a2a2c;
   --artboard-bg: #ffffff;
-  --onion-before: #4ea6ff;
-  --onion-after: #e0574a;
-  --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --focus: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--selection);
+  --onion-before: #3d8fe6;
+  --onion-after: #e5484d;
+  --menu-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.6);
+  --focus: 0 0 0 1px var(--accent);
 }
 
 :root[data-theme="light"] {
-  --bg-0: #e9e6df;
-  --bg-1: #f3f1eb;
-  --bg-2: #ffffff;
-  --bg-3: #e5e2da;
-  --bg-4: #d8d4cb;
-  --line: #cfcbc2;
-  --line-strong: #b4afa5;
-  --fg-0: #1c1b19;
-  --fg-1: #3f3d38;
-  --fg-2: #6f6b63;
-  --fg-3: #9a958b;
-  --accent: #c76a17;
-  --accent-strong: #a9560e;
-  --accent-text: #ffffff;
-  --accent-soft: rgba(199, 106, 23, 0.16);
-  --selection: #1e6fd0;
-  --selection-soft: rgba(30, 111, 208, 0.18);
-  --checker-a: #e4e1da;
-  --checker-b: #f4f2ec;
-  --artboard-bg: #ffffff;
-  --menu-shadow: 0 8px 24px rgba(40, 30, 10, 0.18);
-  --focus: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--selection);
+  --bg-app: #b9b9b7;
+  --bg-0: #d6d6d4;
+  --bg-1: #e9e9e7;
+  --bg-2: #f4f4f2;
+  --bg-3: #dcdcda;
+  --bg-4: #cdcdcb;
+  --bg-well: #ffffff;
+  --line: #d0d0ce;
+  --line-strong: #b2b2b0;
+  --fg-0: #1d1d1c;
+  --fg-1: #3d3d3b;
+  --fg-2: #6a6a67;
+  --fg-3: #9a9a97;
+  --accent: #1f6fcf;
+  --accent-strong: #185db0;
+  --accent-soft: rgba(31, 111, 207, 0.14);
+  --hot: #1f6fcf;
+  --selection: #1f6fcf;
+  --selection-soft: rgba(31, 111, 207, 0.16);
+  --row-selected: #cfe0f5;
+  --key: #6a6a67;
+  --key-selected: #1f6fcf;
+  --checker-a: #dededc;
+  --checker-b: #ececea;
+  --menu-shadow: 0 10px 28px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
 @media (prefers-color-scheme: light) {
   :root[data-theme="system"] {
-    --bg-0: #e9e6df;
-    --bg-1: #f3f1eb;
-    --bg-2: #ffffff;
-    --bg-3: #e5e2da;
-    --bg-4: #d8d4cb;
-    --line: #cfcbc2;
-    --line-strong: #b4afa5;
-    --fg-0: #1c1b19;
-    --fg-1: #3f3d38;
-    --fg-2: #6f6b63;
-    --fg-3: #9a958b;
-    --accent: #c76a17;
-    --accent-strong: #a9560e;
-    --accent-text: #ffffff;
-    --accent-soft: rgba(199, 106, 23, 0.16);
-    --selection: #1e6fd0;
-    --selection-soft: rgba(30, 111, 208, 0.18);
-    --checker-a: #e4e1da;
-    --checker-b: #f4f2ec;
-    --menu-shadow: 0 8px 24px rgba(40, 30, 10, 0.18);
+    --bg-app: #b9b9b7;
+    --bg-0: #d6d6d4;
+    --bg-1: #e9e9e7;
+    --bg-2: #f4f4f2;
+    --bg-3: #dcdcda;
+    --bg-4: #cdcdcb;
+    --bg-well: #ffffff;
+    --line: #d0d0ce;
+    --line-strong: #b2b2b0;
+    --fg-0: #1d1d1c;
+    --fg-1: #3d3d3b;
+    --fg-2: #6a6a67;
+    --fg-3: #9a9a97;
+    --accent: #1f6fcf;
+    --accent-strong: #185db0;
+    --accent-soft: rgba(31, 111, 207, 0.14);
+    --hot: #1f6fcf;
+    --selection: #1f6fcf;
+    --selection-soft: rgba(31, 111, 207, 0.16);
+    --row-selected: #cfe0f5;
+    --key: #6a6a67;
+    --key-selected: #1f6fcf;
+    --checker-a: #dededc;
+    --checker-b: #ececea;
+    --menu-shadow: 0 10px 28px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.12);
   }
 }
 
 .compact {
-  --fs-base: 12px;
-  --row-h: 24px;
-  --control-h: 22px;
+  --fs-base: 11px;
+  --row-h: 20px;
+  --control-h: 20px;
   --sp-2: 6px;
   --sp-3: 8px;
 }

@@ -2,6 +2,7 @@ module UI.Fields exposing
     ( checkbox
     , iconButton
     , numberField
+    , numberFieldShort
     , onEnter
     , row
     , section
@@ -77,6 +78,18 @@ numberField :
     -> { id : String, label : String, value : Maybe Float, step : Float, unit : String, animated : Maybe (Html Msg) }
     -> Html Msg
 numberField model cfg =
+    numberFieldShort model cfg.label cfg
+
+
+{-| Like `numberField`, but shows `shown` as the visible label while keeping
+`cfg.label` as the accessible name. An empty `shown` hides the label.
+-}
+numberFieldShort :
+    Model
+    -> String
+    -> { id : String, label : String, value : Maybe Float, step : Float, unit : String, animated : Maybe (Html Msg) }
+    -> Html Msg
+numberFieldShort model visibleLabel cfg =
     let
         draft =
             Dict.get cfg.id model.fieldDrafts
@@ -146,10 +159,15 @@ numberField model cfg =
                 )
     in
     label [ A.class "num-field", A.classList [ ( "editing", draft /= Nothing ) ] ]
-        [ span [ A.class "num-label", A.title cfg.label ] [ text cfg.label ]
+        [ if String.isEmpty visibleLabel then
+            text ""
+
+          else
+            span [ A.class "num-label", A.title cfg.label ] [ text visibleLabel ]
         , input
             [ A.type_ "text"
             , A.class "num-input"
+            , A.attribute "data-scrub" (String.fromFloat cfg.step)
             , A.value shown
             , A.attribute "inputmode" "decimal"
             , A.attribute "aria-label" cfg.label

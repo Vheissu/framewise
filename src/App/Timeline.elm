@@ -17,6 +17,7 @@ module App.Timeline exposing
     , setPlayhead
     , shiftKeys
     , tick
+    , timeOrigin
     , toggleKeyAt
     , togglePlay
     , trackListWidth
@@ -52,6 +53,14 @@ trackListWidth =
     260
 
 
+{-| Pixels between the left edge of the track area and frame 0, so keys on
+the first frame are not cut in half by the panel edge.
+-}
+timeOrigin : Float
+timeOrigin =
+    10
+
+
 frameAtX : Model -> Float -> Float
 frameAtX model clientX =
     let
@@ -61,7 +70,7 @@ frameAtX model clientX =
         rect =
             model.editor.timelineRect
     in
-    (clientX - rect.left + view.timelineScroll) / view.timelinePixelsPerFrame
+    (clientX - rect.left - timeOrigin + view.timelineScroll) / view.timelinePixelsPerFrame
 
 
 setPlayhead : Float -> Model -> Model
