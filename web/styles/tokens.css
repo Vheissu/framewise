@@ -1,0 +1,109 @@
+/* Framewise design tokens.
+   Graphite surfaces with a warm grey tint and one burnt-orange accent, in the
+   tradition of desktop creative tools whose chrome recedes behind the work. */
+:root {
+  --font-ui:
+    ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-base: 13px;
+  --fs-small: 12px;
+  --fs-tiny: 11px;
+  --fs-large: 15px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --radius: 6px;
+  --radius-small: 4px;
+  --row-h: 28px;
+  --control-h: 26px;
+
+  --bg-0: #1b1b1e;
+  --bg-1: #232326;
+  --bg-2: #2b2b2f;
+  --bg-3: #343439;
+  --bg-4: #3f3f45;
+  --line: #45454c;
+  --line-strong: #5a5a63;
+  --fg-0: #f1efe9;
+  --fg-1: #c9c6bf;
+  --fg-2: #8f8c85;
+  --fg-3: #65625c;
+  --accent: #e8862d;
+  --accent-strong: #ff9a3c;
+  --accent-text: #1b1b1e;
+  --accent-soft: rgba(232, 134, 45, 0.18);
+  --selection: #4ea6ff;
+  --selection-soft: rgba(78, 166, 255, 0.22);
+  --danger: #e0574a;
+  --warning: #e3b341;
+  --ok: #5fbf7a;
+  --key: #f0c24b;
+  --key-selected: #ffffff;
+  --checker-a: #2d2d31;
+  --checker-b: #38383d;
+  --artboard-bg: #ffffff;
+  --onion-before: #4ea6ff;
+  --onion-after: #e0574a;
+  --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --focus: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--selection);
+}
+
+:root[data-theme="light"] {
+  --bg-0: #e9e6df;
+  --bg-1: #f3f1eb;
+  --bg-2: #ffffff;
+  --bg-3: #e5e2da;
+  --bg-4: #d8d4cb;
+  --line: #cfcbc2;
+  --line-strong: #b4afa5;
+  --fg-0: #1c1b19;
+  --fg-1: #3f3d38;
+  --fg-2: #6f6b63;
+  --fg-3: #9a958b;
+  --accent: #c76a17;
+  --accent-strong: #a9560e;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(199, 106, 23, 0.16);
+  --selection: #1e6fd0;
+  --selection-soft: rgba(30, 111, 208, 0.18);
+  --checker-a: #e4e1da;
+  --checker-b: #f4f2ec;
+  --artboard-bg: #ffffff;
+  --menu-shadow: 0 8px 24px rgba(40, 30, 10, 0.18);
+  --focus: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--selection);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --bg-0: #e9e6df;
+    --bg-1: #f3f1eb;
+    --bg-2: #ffffff;
+    --bg-3: #e5e2da;
+    --bg-4: #d8d4cb;
+    --line: #cfcbc2;
+    --line-strong: #b4afa5;
+    --fg-0: #1c1b19;
+    --fg-1: #3f3d38;
+    --fg-2: #6f6b63;
+    --fg-3: #9a958b;
+    --accent: #c76a17;
+    --accent-strong: #a9560e;
+    --accent-text: #ffffff;
+    --accent-soft: rgba(199, 106, 23, 0.16);
+    --selection: #1e6fd0;
+    --selection-soft: rgba(30, 111, 208, 0.18);
+    --checker-a: #e4e1da;
+    --checker-b: #f4f2ec;
+    --menu-shadow: 0 8px 24px rgba(40, 30, 10, 0.18);
+  }
+}
+
+.compact {
+  --fs-base: 12px;
+  --row-h: 24px;
+  --control-h: 22px;
+  --sp-2: 6px;
+  --sp-3: 8px;
+}
