@@ -72,4 +72,14 @@ export async function layerNames(page: Page): Promise<string[]> {
   return page.locator(".layer-tree .layer-name").allInnerTexts();
 }
 
-export const primary = process.platform === "darwin" ? "Meta" : "Control";
+/**
+ * The primary shortcut modifier as the app will interpret it. Playwright's
+ * device profiles can report a Mac user agent on a Linux runner, so ask the
+ * page rather than the host OS.
+ */
+export async function primary(page: Page): Promise<"Meta" | "Control"> {
+  const isMac = await page.evaluate(
+    () => /Mac|iPhone|iPad/.test(navigator.platform) || /Mac OS/.test(navigator.userAgent),
+  );
+  return isMac ? "Meta" : "Control";
+}

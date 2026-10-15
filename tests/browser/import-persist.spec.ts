@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { layerNames, layerRow, openApp, newDocument } from "./helpers";
+import { layerNames, layerRow, openApp, newDocument, primary } from "./helpers";
 
 const fixtures = fileURLToPath(new URL("../fixtures/svg/", import.meta.url));
 
@@ -31,7 +31,7 @@ test.describe("import and persistence", () => {
     const moved = Number(await xField.inputValue());
     await page.locator("#fw-canvas").click({ position: { x: 12, y: 12 } });
     await layerRow(page, "box").click();
-    await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+z`);
+    await page.keyboard.press(`${await primary(page)}+z`);
     await expect.poll(async () => Number(await xField.inputValue())).not.toBe(moved);
     // autosave then reload: the document comes back from IndexedDB
     await page.waitForTimeout(2200);

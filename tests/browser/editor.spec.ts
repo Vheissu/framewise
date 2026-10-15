@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  primary,
   drawRect,
   dragSelection,
   focusCanvas,
@@ -45,9 +46,9 @@ test.describe("editor", () => {
     const xAt15 = await page.locator('input[aria-label="X"]').first().inputValue();
     expect(Number(xAt15)).toBeGreaterThan(Number(xAt0) + 50);
     await focusCanvas(page);
-    await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+z`);
+    await page.keyboard.press(`${await primary(page)}+z`);
     await expect.poll(() => trackListText(page)).not.toContain("Position");
-    await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+Shift+z`);
+    await page.keyboard.press(`${await primary(page)}+Shift+z`);
     await expect.poll(() => trackListText(page)).toContain("Position");
   });
 
@@ -68,15 +69,15 @@ test.describe("editor", () => {
     await drawRect(page, [100, 100], [180, 160]);
     await drawRect(page, [220, 100], [300, 160]);
     await focusCanvas(page);
-    await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+a`);
-    await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+g`);
+    await page.keyboard.press(`${await primary(page)}+a`);
+    await page.keyboard.press(`${await primary(page)}+g`);
     await expect.poll(() => layerNames(page)).toEqual(["Group 1", "Rectangle 2", "Rectangle"]);
     await page.getByRole("button", { name: "Hide Rectangle 2" }).click();
     await expect(page.locator(".layer-row.hidden-layer")).toHaveCount(1);
     await page.getByRole("button", { name: "Lock Rectangle 2" }).click();
     await expect(page.locator(".layer-row.locked-layer")).toHaveCount(1);
     await layerRow(page, "Rectangle").click();
-    await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+]`);
+    await page.keyboard.press(`${await primary(page)}+]`);
     await expect.poll(() => layerNames(page)).toEqual(["Group 1", "Rectangle", "Rectangle 2"]);
   });
 
@@ -84,7 +85,7 @@ test.describe("editor", () => {
     await openApp(page);
     await newDocument(page);
     await focusCanvas(page);
-    await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+k`);
+    await page.keyboard.press(`${await primary(page)}+k`);
     await page.getByRole("textbox", { name: "Search commands" }).fill("ungroup");
     await expect(page.locator(".palette-item").first()).toContainText("Select an object first");
     await page.getByRole("textbox", { name: "Search commands" }).fill("toggle grid");
