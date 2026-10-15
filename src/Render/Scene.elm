@@ -135,9 +135,12 @@ nodeDefs options scene node =
             if node.isClipGroup then
                 case List.head node.childIds |> Maybe.andThen (\cid -> Dict.get cid scene.byId) of
                     Just clipChild ->
+                        -- clipPath only accepts shapes, text and use as children, so the
+                        -- clip shape's transform goes on the clipPath itself; a wrapping
+                        -- <g> would be ignored and clip everything away.
                         [ Svg.el "clipPath"
-                            [ ( "id", clipId options node.id ) ]
-                            [ Svg.el "g" [ ( "transform", Matrix.toSvgTransform clipChild.localMatrix ) ] (shapeElement options clipChild []) ]
+                            [ ( "id", clipId options node.id ), ( "transform", Matrix.toSvgTransform clipChild.localMatrix ) ]
+                            (shapeElement options clipChild [])
                         ]
 
                     Nothing ->
