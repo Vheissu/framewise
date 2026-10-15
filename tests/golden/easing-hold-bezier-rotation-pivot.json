@@ -1,0 +1,281 @@
+{
+  "name": "easing-hold-bezier-rotation-pivot",
+  "animation": {
+    "version": 1,
+    "scene": {
+      "id": "scene",
+      "name": "easing",
+      "width": 400,
+      "height": 400,
+      "fps": {
+        "numerator": 30,
+        "denominator": 1
+      },
+      "durationFrames": 60,
+      "playbackMode": "repeat"
+    },
+    "nodes": [
+      {
+        "id": "n",
+        "name": "n",
+        "kind": "ellipse",
+        "parentId": null,
+        "childIds": [],
+        "hidden": false,
+        "locked": false,
+        "opacity": 1.0,
+        "transform": {
+          "translation": {
+            "x": 100,
+            "y": 100
+          },
+          "scale": {
+            "x": 1,
+            "y": 1
+          },
+          "rotation": 0,
+          "skew": {
+            "x": 0,
+            "y": 0
+          },
+          "pivot": {
+            "x": 10,
+            "y": 0
+          }
+        },
+        "geometry": {
+          "radii": {
+            "x": 20,
+            "y": 20
+          }
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 0.2,
+            "g": 0.5,
+            "b": 0.95,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "none"
+          },
+          "width": 2,
+          "cap": "butt",
+          "join": "miter",
+          "miterLimit": 4,
+          "dashArray": [],
+          "dashOffset": 0
+        },
+        "effects": [],
+        "motion": null,
+        "metadata": {
+          "importedElementId": null
+        }
+      }
+    ],
+    "tracks": [
+      {
+        "id": "r",
+        "target": {
+          "nodeId": "n",
+          "property": "transform.rotation"
+        },
+        "enabled": true,
+        "locked": false,
+        "keyframes": [
+          {
+            "id": "a",
+            "frame": 0,
+            "value": {
+              "type": "angle",
+              "value": 0
+            },
+            "easing": {
+              "type": "hold"
+            }
+          },
+          {
+            "id": "b",
+            "frame": 20,
+            "value": {
+              "type": "angle",
+              "value": 90
+            },
+            "easing": {
+              "type": "preset",
+              "name": "ease-in"
+            }
+          },
+          {
+            "id": "c",
+            "frame": 40,
+            "value": {
+              "type": "angle",
+              "value": 180
+            },
+            "easing": {
+              "type": "cubicBezier",
+              "x1": 0.3,
+              "y1": -0.4,
+              "x2": 0.6,
+              "y2": 1.5
+            }
+          },
+          {
+            "id": "d",
+            "frame": 60,
+            "value": {
+              "type": "angle",
+              "value": 360
+            },
+            "easing": {
+              "type": "linear"
+            }
+          }
+        ]
+      }
+    ],
+    "motionPaths": []
+  },
+  "expectations": [
+    {
+      "frame": 0,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 0.0,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 0,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        100.0,
+        100.0
+      ],
+      "tolerance": 0.0001
+    },
+    {
+      "frame": 10,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 0.0,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 10,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        100.0,
+        100.0
+      ],
+      "tolerance": 0.0001
+    },
+    {
+      "frame": 19,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 0.0,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 19,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        100.0,
+        100.0
+      ],
+      "tolerance": 0.0001
+    },
+    {
+      "frame": 20,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 90.0,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 20,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        110.0,
+        90.0
+      ],
+      "tolerance": 0.0001
+    },
+    {
+      "frame": 30,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 118.38211313152854,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 30,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        114.75349573029948,
+        91.20202987377061
+      ],
+      "tolerance": 0.0001
+    },
+    {
+      "frame": 40,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 180.0,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 40,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        120.0,
+        100.0
+      ],
+      "tolerance": 0.0001
+    },
+    {
+      "frame": 50,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 291.6306783769554,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 50,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        106.31377661807923,
+        109.29579244489574
+      ],
+      "tolerance": 0.0001
+    },
+    {
+      "frame": 60,
+      "nodeId": "n",
+      "property": "rotation",
+      "value": 360.0,
+      "tolerance": 1e-05
+    },
+    {
+      "frame": 60,
+      "nodeId": "n",
+      "property": "position",
+      "value": [
+        100.0,
+        100.0
+      ],
+      "tolerance": 0.0001
+    }
+  ]
+}

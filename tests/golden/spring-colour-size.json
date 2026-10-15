@@ -1,0 +1,329 @@
+{
+  "name": "spring-colour-size",
+  "animation": {
+    "version": 1,
+    "scene": {
+      "id": "scene",
+      "name": "spring",
+      "width": 400,
+      "height": 400,
+      "fps": {
+        "numerator": 30,
+        "denominator": 1
+      },
+      "durationFrames": 60,
+      "playbackMode": "repeat"
+    },
+    "nodes": [
+      {
+        "id": "s",
+        "name": "s",
+        "kind": "rect",
+        "parentId": null,
+        "childIds": [],
+        "hidden": false,
+        "locked": false,
+        "opacity": 1.0,
+        "transform": {
+          "translation": {
+            "x": 0,
+            "y": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1
+          },
+          "rotation": 0,
+          "skew": {
+            "x": 0,
+            "y": 0
+          },
+          "pivot": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "geometry": {
+          "size": {
+            "x": 10,
+            "y": 10
+          },
+          "cornerRadius": 0
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "none"
+          },
+          "width": 2,
+          "cap": "butt",
+          "join": "miter",
+          "miterLimit": 4,
+          "dashArray": [],
+          "dashOffset": 0
+        },
+        "effects": [],
+        "motion": null,
+        "metadata": {
+          "importedElementId": null
+        }
+      }
+    ],
+    "tracks": [
+      {
+        "id": "sc",
+        "target": {
+          "nodeId": "s",
+          "property": "transform.scale"
+        },
+        "enabled": true,
+        "locked": false,
+        "keyframes": [
+          {
+            "id": "a",
+            "frame": 0,
+            "value": {
+              "type": "point",
+              "value": {
+                "x": 1,
+                "y": 1
+              }
+            },
+            "easing": {
+              "type": "spring",
+              "mass": 1,
+              "stiffness": 200,
+              "damping": 3,
+              "velocity": 0
+            }
+          },
+          {
+            "id": "b",
+            "frame": 50,
+            "value": {
+              "type": "point",
+              "value": {
+                "x": 2,
+                "y": 0.5
+              }
+            },
+            "easing": {
+              "type": "linear"
+            }
+          }
+        ]
+      },
+      {
+        "id": "fc",
+        "target": {
+          "nodeId": "s",
+          "property": "style.fill.color"
+        },
+        "enabled": true,
+        "locked": false,
+        "keyframes": [
+          {
+            "id": "c",
+            "frame": 0,
+            "value": {
+              "type": "color",
+              "value": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              }
+            },
+            "easing": {
+              "type": "linear"
+            }
+          },
+          {
+            "id": "d",
+            "frame": 40,
+            "value": {
+              "type": "color",
+              "value": {
+                "r": 0,
+                "g": 0,
+                "b": 1,
+                "a": 0.2
+              }
+            },
+            "easing": {
+              "type": "linear"
+            }
+          }
+        ]
+      },
+      {
+        "id": "rw",
+        "target": {
+          "nodeId": "s",
+          "property": "shape.rect.size"
+        },
+        "enabled": true,
+        "locked": false,
+        "keyframes": [
+          {
+            "id": "e",
+            "frame": 0,
+            "value": {
+              "type": "size",
+              "value": {
+                "x": 10,
+                "y": 10
+              }
+            },
+            "easing": {
+              "type": "preset",
+              "name": "ease-in-out"
+            }
+          },
+          {
+            "id": "f",
+            "frame": 20,
+            "value": {
+              "type": "size",
+              "value": {
+                "x": 30,
+                "y": 10
+              }
+            },
+            "easing": {
+              "type": "linear"
+            }
+          }
+        ]
+      }
+    ],
+    "motionPaths": []
+  },
+  "expectations": [
+    {
+      "frame": 0,
+      "nodeId": "s",
+      "property": "scale",
+      "value": [
+        1.0,
+        1.0
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 5,
+      "nodeId": "s",
+      "property": "scale",
+      "value": [
+        1.7684306537797423,
+        0.6157846731101289
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 12,
+      "nodeId": "s",
+      "property": "scale",
+      "value": [
+        2.695973842153796,
+        0.15201307892310212
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 25,
+      "nodeId": "s",
+      "property": "scale",
+      "value": [
+        1.6194585978228448,
+        0.6902707010885776
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 40,
+      "nodeId": "s",
+      "property": "scale",
+      "value": [
+        1.9553192667139627,
+        0.5223403666430186
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 50,
+      "nodeId": "s",
+      "property": "scale",
+      "value": [
+        2.0,
+        0.5
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 0,
+      "nodeId": "s",
+      "property": "fill",
+      "value": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "frame": 10,
+      "nodeId": "s",
+      "property": "fill",
+      "value": [
+        0.75,
+        0.8
+      ]
+    },
+    {
+      "frame": 40,
+      "nodeId": "s",
+      "property": "fill",
+      "value": [
+        0,
+        0.19999999999999996
+      ]
+    },
+    {
+      "frame": 45,
+      "nodeId": "s",
+      "property": "fill",
+      "value": [
+        0,
+        0.19999999999999996
+      ]
+    },
+    {
+      "frame": 0,
+      "nodeId": "s",
+      "property": "rectWidth",
+      "value": 10.0,
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 10,
+      "nodeId": "s",
+      "property": "rectWidth",
+      "value": 20.0,
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 20,
+      "nodeId": "s",
+      "property": "rectWidth",
+      "value": 30.0,
+      "tolerance": 1e-06
+    }
+  ]
+}

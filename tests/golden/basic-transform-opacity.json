@@ -1,0 +1,257 @@
+{
+  "name": "basic-transform-opacity",
+  "animation": {
+    "version": 1,
+    "scene": {
+      "id": "scene",
+      "name": "basic",
+      "width": 400,
+      "height": 400,
+      "fps": {
+        "numerator": 30,
+        "denominator": 1
+      },
+      "durationFrames": 60,
+      "playbackMode": "repeat"
+    },
+    "nodes": [
+      {
+        "id": "box",
+        "name": "box",
+        "kind": "rect",
+        "parentId": null,
+        "childIds": [],
+        "hidden": false,
+        "locked": false,
+        "opacity": 1.0,
+        "transform": {
+          "translation": {
+            "x": 10,
+            "y": 20
+          },
+          "scale": {
+            "x": 1,
+            "y": 1
+          },
+          "rotation": 0,
+          "skew": {
+            "x": 0,
+            "y": 0
+          },
+          "pivot": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "geometry": {
+          "size": {
+            "x": 100,
+            "y": 50
+          },
+          "cornerRadius": 0
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 0.2,
+            "g": 0.5,
+            "b": 0.95,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "none"
+          },
+          "width": 2,
+          "cap": "butt",
+          "join": "miter",
+          "miterLimit": 4,
+          "dashArray": [],
+          "dashOffset": 0
+        },
+        "effects": [],
+        "motion": null,
+        "metadata": {
+          "importedElementId": null
+        }
+      }
+    ],
+    "tracks": [
+      {
+        "id": "t1",
+        "target": {
+          "nodeId": "box",
+          "property": "transform.position"
+        },
+        "enabled": true,
+        "locked": false,
+        "keyframes": [
+          {
+            "id": "a",
+            "frame": 0,
+            "value": {
+              "type": "point",
+              "value": {
+                "x": 10,
+                "y": 20
+              }
+            },
+            "easing": {
+              "type": "linear"
+            }
+          },
+          {
+            "id": "b",
+            "frame": 30,
+            "value": {
+              "type": "point",
+              "value": {
+                "x": 110,
+                "y": 20
+              }
+            },
+            "easing": {
+              "type": "preset",
+              "name": "ease-in-out"
+            }
+          },
+          {
+            "id": "c",
+            "frame": 60,
+            "value": {
+              "type": "point",
+              "value": {
+                "x": 110,
+                "y": 220
+              }
+            },
+            "easing": {
+              "type": "linear"
+            }
+          }
+        ]
+      },
+      {
+        "id": "t2",
+        "target": {
+          "nodeId": "box",
+          "property": "compositing.opacity"
+        },
+        "enabled": true,
+        "locked": false,
+        "keyframes": [
+          {
+            "id": "d",
+            "frame": 10,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "easing": {
+              "type": "linear"
+            }
+          },
+          {
+            "id": "e",
+            "frame": 50,
+            "value": {
+              "type": "scalar",
+              "value": 0.2
+            },
+            "easing": {
+              "type": "linear"
+            }
+          }
+        ]
+      }
+    ],
+    "motionPaths": []
+  },
+  "expectations": [
+    {
+      "frame": 0,
+      "nodeId": "box",
+      "property": "position",
+      "value": [
+        10.0,
+        20
+      ]
+    },
+    {
+      "frame": 15,
+      "nodeId": "box",
+      "property": "position",
+      "value": [
+        60.0,
+        20
+      ]
+    },
+    {
+      "frame": 30,
+      "nodeId": "box",
+      "property": "position",
+      "value": [
+        110.0,
+        20
+      ]
+    },
+    {
+      "frame": 45,
+      "nodeId": "box",
+      "property": "position",
+      "value": [
+        110,
+        120.0
+      ]
+    },
+    {
+      "frame": 60,
+      "nodeId": "box",
+      "property": "position",
+      "value": [
+        110,
+        220.0
+      ]
+    },
+    {
+      "frame": 75,
+      "nodeId": "box",
+      "property": "position",
+      "value": [
+        110,
+        220.0
+      ]
+    },
+    {
+      "frame": 0,
+      "nodeId": "box",
+      "property": "opacity",
+      "value": 1
+    },
+    {
+      "frame": 10,
+      "nodeId": "box",
+      "property": "opacity",
+      "value": 1
+    },
+    {
+      "frame": 30,
+      "nodeId": "box",
+      "property": "opacity",
+      "value": 0.6
+    },
+    {
+      "frame": 50,
+      "nodeId": "box",
+      "property": "opacity",
+      "value": 0.2
+    },
+    {
+      "frame": 60,
+      "nodeId": "box",
+      "property": "opacity",
+      "value": 0.2
+    }
+  ]
+}

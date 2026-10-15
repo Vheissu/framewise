@@ -1,0 +1,201 @@
+{
+  "name": "motion-path-polyline",
+  "animation": {
+    "version": 1,
+    "scene": {
+      "id": "scene",
+      "name": "motion",
+      "width": 400,
+      "height": 400,
+      "fps": {
+        "numerator": 30,
+        "denominator": 1
+      },
+      "durationFrames": 40,
+      "playbackMode": "repeat"
+    },
+    "nodes": [
+      {
+        "id": "m",
+        "name": "m",
+        "kind": "polygon",
+        "parentId": null,
+        "childIds": [],
+        "hidden": false,
+        "locked": false,
+        "opacity": 1.0,
+        "transform": {
+          "translation": {
+            "x": 50,
+            "y": 50
+          },
+          "scale": {
+            "x": 1,
+            "y": 1
+          },
+          "rotation": 0,
+          "skew": {
+            "x": 0,
+            "y": 0
+          },
+          "pivot": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "geometry": {
+          "sides": 3,
+          "radius": 5,
+          "innerRadius": null
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 0.2,
+            "g": 0.5,
+            "b": 0.95,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "none"
+          },
+          "width": 2,
+          "cap": "butt",
+          "join": "miter",
+          "miterLimit": 4,
+          "dashArray": [],
+          "dashOffset": 0
+        },
+        "effects": [],
+        "motion": {
+          "pathId": "mp",
+          "orient": true
+        },
+        "metadata": {
+          "importedElementId": null
+        }
+      }
+    ],
+    "tracks": [
+      {
+        "id": "p",
+        "target": {
+          "nodeId": "m",
+          "property": "motion.progress"
+        },
+        "enabled": true,
+        "locked": false,
+        "keyframes": [
+          {
+            "id": "a",
+            "frame": 0,
+            "value": {
+              "type": "scalar",
+              "value": 0
+            },
+            "easing": {
+              "type": "linear"
+            }
+          },
+          {
+            "id": "b",
+            "frame": 40,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "easing": {
+              "type": "linear"
+            }
+          }
+        ]
+      }
+    ],
+    "motionPaths": [
+      {
+        "id": "mp",
+        "geometry": {
+          "subpaths": [
+            {
+              "start": {
+                "x": 0,
+                "y": 0
+              },
+              "closed": false,
+              "segments": [
+                {
+                  "type": "line",
+                  "to": {
+                    "x": 100,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "line",
+                  "to": {
+                    "x": 100,
+                    "y": 100
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expectations": [
+    {
+      "frame": 0,
+      "nodeId": "m",
+      "property": "position",
+      "value": [
+        50,
+        50
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 10,
+      "nodeId": "m",
+      "property": "position",
+      "value": [
+        100,
+        50
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 20,
+      "nodeId": "m",
+      "property": "position",
+      "value": [
+        150,
+        50
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 30,
+      "nodeId": "m",
+      "property": "position",
+      "value": [
+        150,
+        100
+      ],
+      "tolerance": 1e-06
+    },
+    {
+      "frame": 40,
+      "nodeId": "m",
+      "property": "position",
+      "value": [
+        150,
+        150
+      ],
+      "tolerance": 1e-06
+    }
+  ]
+}
