@@ -1,0 +1,35 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.12.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Cache Elm packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.elm
+          key: elm-${{ runner.os }}-${{ hashFiles('elm.json') }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run format:check
+      - name: Golden fixtures are in sync
+        run: node tests/golden/generate-elm.mjs && git diff --exit-code tests/GoldenTest.elm
+      - run: pnpm run elm:test
+      - run: pnpm run test:unit
+      - run: pnpm run build
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high || true
