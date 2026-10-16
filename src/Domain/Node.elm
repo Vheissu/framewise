@@ -8,12 +8,14 @@ module Domain.Node exposing
     , NodeGeometry(..)
     , PolygonGeometry
     , RectGeometry
+    , Span
     , TextAlign(..)
     , TextGeometry
     , alignFromCode
     , alignToCode
     , animatableProperties
     , geometryBounds
+    , inSpan
     , isContainer
     , kindCode
     , kindLabel
@@ -105,7 +107,30 @@ type alias Node =
     , effects : List Effect
     , motion : Maybe MotionAttachment
     , importedElementId : Maybe String
+    , span : Maybe Span
     }
+
+
+{-| The frames a layer exists for, as a layer's in and out points in After
+Effects: shown from `inFrame` up to but not including `outFrame`. An out
+point at or past the scene's end keeps the layer to the end, last frame
+included. `Nothing` means the layer spans the whole scene.
+-}
+type alias Span =
+    { inFrame : Int, outFrame : Int }
+
+
+{-| Whether the layer exists at a (possibly fractional) frame of a scene with
+the given duration.
+-}
+inSpan : Int -> Float -> Node -> Bool
+inSpan duration frame node =
+    case node.span of
+        Just s ->
+            frame >= toFloat s.inFrame && (frame < toFloat s.outFrame || s.outFrame >= duration)
+
+        Nothing ->
+            True
 
 
 type alias MotionAttachment =
@@ -149,6 +174,7 @@ new id name geometry =
     , effects = []
     , motion = Nothing
     , importedElementId = Nothing
+    , span = Nothing
     }
 
 

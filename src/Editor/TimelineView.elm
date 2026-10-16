@@ -1,8 +1,8 @@
 module Editor.TimelineView exposing (view)
 
 {-| Bottom timeline: transport, frame readout, track rows with keyframe
-diamonds, ruler and playhead. Rows are limited to animated nodes plus the
-current selection so the panel stays legible.
+diamonds, ruler with the work area strip, and playhead. Rows are limited to
+animated nodes plus the current selection so the panel stays legible.
 -}
 
 import App.Edit as Edit
@@ -12,19 +12,23 @@ import App.Msg exposing (Msg(..))
 import App.Timeline as Timeline
 import Dict
 import Domain.Color
+import Domain.Document exposing (Document)
 import Domain.Easing exposing (Easing(..))
 import Domain.Evaluate as Evaluate
 import Domain.Fps as Fps
-import Domain.Keyframe as Keyframe exposing (Track)
-import Domain.Node as Node exposing (Node)
-import Domain.Property as Property exposing (PropertyPath, PropertyValue(..))
+import Domain.Keyframe as Keyframe
+import Domain.LayerTime as LayerTime
+import Domain.Property as Property exposing (PropertyValue(..))
 import Domain.Scene as Scene exposing (Scene)
 import Editor.CanvasView exposing (pointerDecoder)
 import Html exposing (Html, button, div, span, text)
 import Html.Attributes as A
 import Html.Events as E
+import Html.Keyed
+import Html.Lazy
 import Json.Decode as D
-import Set
+import Render.Scene as Render
+import Render.SvgDoc as SvgDoc
 import UI.Fields as UI
 import UI.Icons as Icons
 import UI.Label as Label
@@ -169,6 +173,7 @@ transport model scene =
             , UI.iconButton { icon = "key", label = "Auto-keyframe: " ++ iif e.autoKey "on" "off", active = e.autoKey, onClick = ToggleAutoKey, disabled = False }
             , UI.iconButton { icon = "onion", label = "Onion skin", active = e.onionSkin, onClick = ToggleOnionSkin, disabled = False }
             , UI.iconButton { icon = "magnet", label = "Snap keys to frames", active = model.preferences.timelineSnap, onClick = PreferenceChanged (\p -> { p | timelineSnap = not p.timelineSnap }), disabled = False }
+            , UI.iconButton { icon = "film", label = "Frame thumbnails", active = e.showFilmstrip, onClick = ToggleFilmstrip, disabled = False }
             , UI.iconButton { icon = "layers", label = "Show all properties for selected layers", active = e.showAllProperties, onClick = ToggleAllProperties, disabled = False }
             ]
         , div [ A.class "transport-group transport-right" ]
@@ -199,86 +204,11 @@ fitMsg model scene =
 -- ROWS
 
 
-type alias Row =
-    { node : Node
-    , property : Maybe PropertyPath
-    , track : Maybe Track
-    , depth : Int
-    }
-
-
-rows : Model -> Scene -> List Row
-rows model scene =
-    let
-        e =
-            model.editor
-
-        view_ =
-            Model.activeView model
-
-        sel =
-            view_.selection
-
-        animatedIds =
-            Dict.values scene.tracks |> List.map (.target >> .nodeId) |> Set.fromList
-
-        candidates =
-            Scene.flattenOrder scene
-                |> List.filter (\id -> Set.member id animatedIds || List.member id sel)
-                |> List.filterMap (\id -> Dict.get id scene.nodes)
-
-        nodeRows node =
-            let
-                tracks =
-                    Scene.tracksFor node.id scene
-
-                selected =
-                    List.member node.id sel
-
-                props =
-                    if e.showAllProperties && selected then
-                        Node.animatableProperties node
-
-                    else
-                        tracks |> List.map (.target >> .property)
-
-                expanded =
-                    Set.member ("tl:" ++ node.id) view_.expanded || selected || True
-            in
-            Row node Nothing Nothing 0
-                :: (if expanded then
-                        List.map (\p -> Row node (Just p) (tracks |> List.filter (\t -> t.target.property == p) |> List.head) 1) (dedupe props)
-
-                    else
-                        []
-                   )
-    in
-    List.concatMap nodeRows candidates
-
-
-dedupe : List a -> List a
-dedupe =
-    List.foldl
-        (\x acc ->
-            if List.member x acc then
-                acc
-
-            else
-                acc ++ [ x ]
-        )
-        []
-
-
-rowHeight : Float
-rowHeight =
-    22
-
-
 trackList : Model -> Scene -> Html Msg
 trackList model scene =
     let
         allRows =
-            rows model scene
+            Timeline.rows model scene
 
         frame =
             Edit.currentFrame model
@@ -287,7 +217,7 @@ trackList model scene =
             (Model.activeView model).selection
     in
     div [ A.class "track-list", A.style "width" (String.fromFloat Timeline.trackListWidth ++ "px") ]
-        [ div [ A.class "track-list-header" ] [ span [] [ text "Layer" ], span [] [ text "Value" ] ]
+        [ div [ A.class "track-list-header", A.style "height" (px (Timeline.lanesTop model)) ] [ span [] [ text "Layer" ], span [] [ text "Value" ] ]
         , if List.isEmpty allRows then
             div [ A.class "empty small" ] [ text "Select a layer and press K, or click a diamond in the inspector, to start animating." ]
 
@@ -300,7 +230,7 @@ trackList model scene =
                                 div
                                     [ A.class "track-row node-row"
                                     , A.classList [ ( "selected", List.member row.node.id sel ) ]
-                                    , A.style "height" (String.fromFloat rowHeight ++ "px")
+                                    , A.style "height" (String.fromFloat Timeline.rowHeight ++ "px")
                                     , A.attribute "role" "treeitem"
                                     , E.onClick (SelectNodes [ row.node.id ] False)
                                     ]
@@ -323,7 +253,7 @@ trackList model scene =
                                 div
                                     [ A.class "track-row property-row"
                                     , A.classList [ ( "muted", not enabled ) ]
-                                    , A.style "height" (String.fromFloat rowHeight ++ "px")
+                                    , A.style "height" (String.fromFloat Timeline.rowHeight ++ "px")
                                     , A.attribute "role" "treeitem"
                                     , E.custom "contextmenu"
                                         (D.map2 (\x y -> { message = OpenContextMenu x y (Model.TrackContext (row.track |> Maybe.map .id |> Maybe.withDefault "")), stopPropagation = True, preventDefault = True })
@@ -411,27 +341,112 @@ trackArea model scene =
             scene.durationFrames
 
         allRows =
-            rows model scene
+            Timeline.rows model scene
 
         frame =
             Edit.currentFrame model
 
         rulerStep =
-            [ 1, 2, 5, 10, 15, 30, 60, 120, 300, 600 ] |> List.filter (\s -> toFloat s * ppf >= 48) |> List.head |> Maybe.withDefault 600
+            [ 1, 2, 5, 10, 15, 30, 60, 120, 300, 600 ] |> List.filter (\st -> toFloat st * ppf >= 48) |> List.head |> Maybe.withDefault 600
 
         ticks =
             List.range 0 (duration // rulerStep) |> List.map ((*) rulerStep)
 
-        ( ws, we ) =
-            Timeline.playbackRange scene
+        -- unlabelled ticks between the numbered ones, at least 6px apart
+        minorStep =
+            [ 1, 2, 5, 10, 30, 60, 150 ]
+                |> List.filter (\st -> st < rulerStep && modBy st rulerStep == 0 && toFloat st * ppf >= 6)
+                |> List.head
 
-        workRange =
-            case scene.workRange of
-                Just _ ->
-                    [ div [ A.class "work-range", A.style "left" (px (frameX (toFloat ws))), A.style "width" (px (toFloat (we - ws) * ppf)) ] [] ]
+        minorTicks =
+            case minorStep of
+                Just st ->
+                    List.range 0 (duration // st)
+                        |> List.map ((*) st)
+                        |> List.filter (\t -> modBy rulerStep t /= 0)
 
                 Nothing ->
                     []
+
+        ( ws, we ) =
+            Timeline.playbackRange scene
+
+        rangeStrip =
+            div
+                [ A.class "range-strip"
+                , A.style "height" (px Timeline.rangeStripHeight)
+                , A.title "Work range: drag to set, drag the ends to trim, drag the middle to move, double-click to clear (B and N set the ends at the playhead)"
+                , E.custom "pointerdown" (D.map (\ev -> { message = TimelineRangeDown ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
+                , E.custom "dblclick" (D.succeed { message = iif (scene.workRange == Nothing) NoOp (SetWorkRange Nothing), stopPropagation = True, preventDefault = False })
+                ]
+                (case scene.workRange of
+                    Just _ ->
+                        [ div [ A.class "range-bar", A.style "left" (px (frameX (toFloat ws))), A.style "width" (px (toFloat (we - ws) * ppf)) ]
+                            [ div [ A.class "range-handle range-handle-start" ] []
+                            , div [ A.class "range-handle range-handle-end" ] []
+                            ]
+                        ]
+
+                    Nothing ->
+                        []
+                )
+
+        -- dim the time outside the work range so the chosen part stands out
+        rangeShades =
+            case scene.workRange of
+                Just _ ->
+                    [ div [ A.class "range-shade", A.style "top" (px Timeline.rangeStripHeight), A.style "left" "0", A.style "width" (px (max 0 (frameX (toFloat ws)))) ] []
+                    , div [ A.class "range-shade", A.style "top" (px Timeline.rangeStripHeight), A.style "left" (px (frameX (toFloat we))), A.style "right" "0" ] []
+                    ]
+
+                Nothing ->
+                    []
+
+        marquee =
+            case model.editor.gesture of
+                Model.MarqueeKeys g ->
+                    let
+                        left =
+                            frameX (min g.startFrame g.currentFrame)
+
+                        right =
+                            frameX (max g.startFrame g.currentFrame)
+                    in
+                    [ div
+                        [ A.class "key-marquee"
+                        , A.style "left" (px left)
+                        , A.style "width" (px (right - left))
+                        , A.style "top" (px (min g.startY g.currentY))
+                        , A.style "height" (px (abs (g.currentY - g.startY)))
+                        ]
+                        []
+                    ]
+
+                _ ->
+                    []
+
+        scrubbing =
+            model.editor.gesture == Model.ScrubPlayhead
+
+        barPress nodeId edge =
+            E.custom "pointerdown" (D.map (\ev -> { message = LayerBarDown nodeId edge ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
+
+        layerBar nodeId =
+            let
+                span =
+                    LayerTime.spanOf scene nodeId
+            in
+            div
+                [ A.class "layer-bar"
+                , Label.style nodeId
+                , A.style "left" (px (frameX (toFloat span.inFrame)))
+                , A.style "width" (px (toFloat (span.outFrame - span.inFrame) * ppf))
+                , A.title ("In " ++ String.fromInt span.inFrame ++ " · Out " ++ String.fromInt span.outFrame ++ ". Drag to move the layer and its keys, drag an end to trim, Shift snaps.")
+                , barPress nodeId Model.BarBody
+                ]
+                [ div [ A.class "bar-trim bar-trim-in", barPress nodeId Model.BarIn ] []
+                , div [ A.class "bar-trim bar-trim-out", barPress nodeId Model.BarOut ] []
+                ]
 
         keysOf row =
             case ( row.track, row.property ) of
@@ -491,27 +506,37 @@ trackArea model scene =
     in
     [ div
         [ A.class "ruler-row"
+        , A.style "height" (px Timeline.rulerHeight)
         , E.custom "pointerdown" (D.map (\ev -> { message = TimelineRulerDown ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
         ]
-        (workRange
+        (rangeStrip
+            :: List.map (\t -> span [ A.class "tick-minor", A.style "left" (px (frameX (toFloat t))) ] []) minorTicks
             ++ List.map
                 (\t ->
                     span [ A.class "tick", A.style "left" (px (frameX (toFloat t))) ] [ text (String.fromInt t) ]
                 )
                 ticks
-            ++ [ div [ A.class "end-marker", A.style "left" (px (frameX (toFloat duration))) ] [] ]
+            ++ [ div [ A.class "end-marker", A.style "top" (px Timeline.rangeStripHeight), A.style "left" (px (frameX (toFloat duration))) ] [] ]
         )
-    , div [ A.class "track-area-rows" ]
+    , if model.editor.showFilmstrip then
+        filmstrip model scene
+
+      else
+        text ""
+    , div
+        [ A.class "track-area-rows"
+        , E.custom "pointerdown" (D.map (\ev -> { message = TimelineLanesDown ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
+        ]
         (List.map
             (\row ->
                 div
                     [ A.class "track-lane"
                     , A.classList [ ( "node-lane", row.property == Nothing ), ( "selected", row.property == Nothing && List.member row.node.id view_.selection ) ]
-                    , A.style "height" (px rowHeight)
+                    , A.style "height" (px Timeline.rowHeight)
                     ]
                     (div [ A.class "lane-end", A.style "left" (px (frameX (toFloat duration))) ] []
                         :: (if row.property == Nothing then
-                                [ div [ A.class "layer-bar", Label.style row.node.id, A.style "left" (px (frameX 0)), A.style "width" (px (toFloat duration * ppf)) ] [] ]
+                                [ layerBar row.node.id ]
 
                             else
                                 []
@@ -522,8 +547,134 @@ trackArea model scene =
             )
             allRows
         )
-    , div [ A.class "playhead", A.style "left" (px (frameX frame)) ] [ div [ A.class "playhead-head" ] [] ]
     ]
+        ++ rangeShades
+        ++ marquee
+        ++ [ div
+                [ A.class "playhead-grip"
+                , A.style "top" (px (Timeline.lanesTop model))
+                , A.style "left" (px (frameX frame))
+                , A.title "Drag to scrub (Shift snaps to keys)"
+                , E.custom "pointerdown" (D.map (\ev -> { message = TimelineRulerDown ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
+                ]
+                []
+           , div
+                [ A.class "playhead"
+                , A.classList [ ( "dragging", scrubbing ) ]
+                , A.style "top" (px Timeline.rangeStripHeight)
+                , A.style "left" (px (frameX frame))
+                ]
+                [ div [ A.class "playhead-head" ] []
+                , if scrubbing then
+                    span [ A.class "playhead-label" ] [ text (Fields.displayValue frame) ]
+
+                  else
+                    text ""
+                ]
+           ]
+
+
+
+-- FILMSTRIP
+
+
+{-| A row of rendered frames under the ruler. Zooming in spreads the frames
+out until every frame has its own thumbnail. Thumbnails only redraw when the
+document changes, not when the playhead moves, and hold still during a drag
+until it is released.
+-}
+filmstrip : Model -> Scene -> Html Msg
+filmstrip model scene =
+    case Model.activeDoc model of
+        Just open ->
+            let
+                view_ =
+                    Model.activeView model
+
+                doc =
+                    Maybe.withDefault open.document model.editor.gestureOrigin
+
+                docScene =
+                    Dict.get scene.id doc.scenes |> Maybe.withDefault scene
+            in
+            Html.Lazy.lazy6 filmstripFrames open.assetUrls doc docScene view_.timelinePixelsPerFrame view_.timelineScroll model.editor.timelineRect.width
+
+        Nothing ->
+            text ""
+
+
+filmstripFrames : Dict.Dict String String -> Document -> Scene -> Float -> Float -> Float -> Html Msg
+filmstripFrames assetUrls doc scene ppf scroll width =
+    let
+        thumbHeight =
+            Timeline.filmstripHeight - 8
+
+        thumbWidth =
+            clamp 16 160 (thumbHeight * scene.width / max 1 scene.height)
+
+        -- frames per thumbnail, on round numbers so thumbnails stay put while scrolling
+        step =
+            [ 1, 2, 5, 10, 15, 30, 60, 120, 300, 600 ]
+                |> List.filter (\st -> toFloat st * ppf >= thumbWidth + 2)
+                |> List.head
+                |> Maybe.withDefault 600
+
+        slot =
+            toFloat step * ppf
+
+        first =
+            max 0 (floor ((scroll - Timeline.timeOrigin) / slot))
+
+        last =
+            ceiling ((scroll + width) / slot)
+
+        frames =
+            List.range first last
+                |> List.map ((*) step)
+                |> List.filter (\f -> f <= scene.durationFrames)
+    in
+    Html.Keyed.node "div"
+        [ A.class "filmstrip"
+        , A.style "height" (px Timeline.filmstripHeight)
+        , A.title "Drag to scrub"
+        , E.custom "pointerdown" (D.map (\ev -> { message = TimelineRulerDown ev, stopPropagation = True, preventDefault = False }) pointerDecoder)
+        ]
+        (List.map
+            (\f ->
+                ( String.fromInt f
+                , div
+                    [ A.class "film-frame"
+                    , A.attribute "data-frame" (String.fromInt f)
+                    , A.style "left" (px (toFloat f * ppf - scroll + Timeline.timeOrigin))
+                    , A.style "width" (px thumbWidth)
+                    , A.style "height" (px thumbHeight)
+                    ]
+                    [ Html.Lazy.lazy4 thumbnail assetUrls doc scene f ]
+                )
+            )
+            frames
+        )
+
+
+thumbnail : Dict.Dict String String -> Document -> Scene -> Int -> Html Msg
+thumbnail assetUrls doc scene frame =
+    case Evaluate.evaluateScene doc scene.id (toFloat frame) of
+        Just resolved ->
+            SvgDoc.toHtml
+                (Render.renderScene
+                    { idPrefix = "film-" ++ String.fromInt frame
+                    , assetUrls = assetUrls
+                    , includeBackground = True
+                    , includeIds = False
+                    , title = Nothing
+                    , description = Nothing
+                    , standalone = False
+                    }
+                    resolved
+                )
+
+        Nothing ->
+            text ""
 
 
 px : Float -> String

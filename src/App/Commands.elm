@@ -2,6 +2,7 @@ module App.Commands exposing
     ( Command
     , Shortcut
     , all
+    , bindings
     , byId
     , enabled
     , find
@@ -373,6 +374,12 @@ all =
     , Command "layer.expandAll" "Expand All" "Layer" Nothing (RunCommand "layer.expandAll") needsDoc
     , Command "layer.collapseAll" "Collapse All" "Layer" Nothing (RunCommand "layer.collapseAll") needsDoc
     , Command "layer.removeAnimation" "Remove All Animation" "Layer" Nothing (RunCommand "layer.removeAnimation") needsSelection
+    , Command "layer.split" "Split Layer at Playhead" "Layer" (Just (scShift "d")) (RunCommand "layer.split") needsSelection
+    , Command "layer.trimIn" "Trim In Point to Playhead" "Layer" (Just (plain "[" "global" |> withAlt)) (RunCommand "layer.trimIn") needsSelection
+    , Command "layer.trimOut" "Trim Out Point to Playhead" "Layer" (Just (plain "]" "global" |> withAlt)) (RunCommand "layer.trimOut") needsSelection
+    , Command "layer.moveIn" "Move In Point to Playhead" "Layer" (Just (plain "[" "global")) (RunCommand "layer.moveIn") needsSelection
+    , Command "layer.moveOut" "Move Out Point to Playhead" "Layer" (Just (plain "]" "global")) (RunCommand "layer.moveOut") needsSelection
+    , Command "layer.resetSpan" "Reset Layer Span" "Layer" Nothing (RunCommand "layer.resetSpan") needsSelection
 
     -- Animate
     , Command "animate.addKey" "Add Keyframe" "Animate" Nothing AddKeyAtPlayhead needsSelection
@@ -393,6 +400,8 @@ all =
     , Command "animate.easeInOut" "Easing: Ease In Out" "Animate" Nothing (SetKeyEasing (Domain.Easing.Preset Domain.Easing.EaseInOut)) needsKeys
     , Command "animate.spring" "Easing: Spring" "Animate" Nothing (SetKeyEasing (Domain.Easing.Spring Domain.Easing.defaultSpring)) needsKeys
     , Command "animate.setWorkRange" "Set Work Range to Selection" "Animate" Nothing (RunCommand "animate.setWorkRange") needsKeys
+    , Command "animate.rangeStart" "Set Work Range Start to Playhead" "Animate" (Just (plain "b" "global")) (SetRangeEdgeAtPlayhead True) needsDoc
+    , Command "animate.rangeEnd" "Set Work Range End to Playhead" "Animate" (Just (plain "n" "global")) (SetRangeEdgeAtPlayhead False) needsDoc
     , Command "animate.clearWorkRange" "Clear Work Range" "Animate" Nothing (SetWorkRange Nothing) needsDoc
     , Command "animate.stagger" "Stagger…" "Animate" Nothing (SetDialog (Model.StaggerDialog { startFrame = "0", spacing = "5", order = "layer" })) needsMulti
     , Command "animate.onion" "Toggle Onion Skin" "Animate" Nothing ToggleOnionSkin needsDoc
@@ -433,6 +442,52 @@ all =
     , Command "help.licences" "Open Source Licences" "Help" Nothing (SetDialog (Model.DocsDialog "licences" "")) always
     , Command "help.about" "About Framewise" "Help" Nothing (SetDialog Model.AboutDialog) always
     ]
+
+
+{-| Keys that run a command alongside its own shortcut. With the timeline
+focused, single letters cut layers the way video editors do: S splits at the
+playhead, Q trims away everything before it and W everything after.
+-}
+extraShortcuts : List ( String, Shortcut )
+extraShortcuts =
+    [ ( "layer.split", plain "s" "timeline" )
+    , ( "layer.trimIn", plain "q" "timeline" )
+    , ( "layer.trimOut", plain "w" "timeline" )
+    ]
+
+
+{-| Every key binding: each command's own shortcut, then the extra keys.
+-}
+bindings : List ( Command, Shortcut )
+bindings =
+    List.filterMap (\c -> Maybe.map (Tuple.pair c) c.shortcut) all
+        ++ List.filterMap (\( id, s ) -> Maybe.map (\c -> ( c, s )) (find id)) extraShortcuts
+
+
+{-| The `KeyboardEvent.code` of the physical key that types a shortcut key on
+a US layout.
+-}
+codeFor : String -> String
+codeFor key =
+    case key of
+        "[" ->
+            "BracketLeft"
+
+        "]" ->
+            "BracketRight"
+
+        "/" ->
+            "Slash"
+
+        _ ->
+            if String.length key == 1 && Char.isAlpha (Maybe.withDefault ' ' (List.head (String.toList key))) then
+                "Key" ++ String.toUpper key
+
+            else if String.length key == 1 && Char.isDigit (Maybe.withDefault ' ' (List.head (String.toList key))) then
+                "Digit" ++ key
+
+            else
+                key
 
 
 withAlt : Shortcut -> Shortcut
@@ -481,10 +536,10 @@ menuGroups =
       , [ "object.group", "object.ungroup", "object.clipToShape", "object.releaseClip", "-", "object.convertToPath", "object.togglePath", "object.reversePath", "-", "object.flipH", "object.flipV", "object.resetTransform", "object.setPivot", "-", "object.alignLeft", "object.alignCenterH", "object.alignRight", "object.alignTop", "object.alignCenterV", "object.alignBottom", "object.distributeH", "object.distributeV", "-", "object.createMotionPath" ]
       )
     , ( "Layer"
-      , [ "edit.rename", "layer.duplicate", "-", "layer.moveUp", "layer.moveDown", "layer.front", "layer.back", "-", "layer.lock", "layer.hide", "layer.isolate", "layer.exitIsolation", "-", "layer.selectParent", "layer.selectChildren", "layer.expandAll", "layer.collapseAll", "-", "layer.removeAnimation" ]
+      , [ "edit.rename", "layer.duplicate", "-", "layer.moveUp", "layer.moveDown", "layer.front", "layer.back", "-", "layer.lock", "layer.hide", "layer.isolate", "layer.exitIsolation", "-", "layer.selectParent", "layer.selectChildren", "layer.expandAll", "layer.collapseAll", "-", "layer.split", "layer.trimIn", "layer.trimOut", "layer.moveIn", "layer.moveOut", "layer.resetSpan", "-", "layer.removeAnimation" ]
       )
     , ( "Animate"
-      , [ "animate.addKey", "animate.removeKeys", "animate.autoKey", "-", "animate.copyKeys", "animate.pasteKeys", "animate.reverse", "animate.shiftLeft", "animate.shiftRight", "animate.scaleUp", "animate.scaleDown", "animate.distribute", "-", "animate.hold", "animate.linear", "animate.easeIn", "animate.easeOut", "animate.easeInOut", "animate.spring", "-", "animate.setWorkRange", "animate.clearWorkRange", "animate.stagger", "-", "animate.play", "animate.reversePlay", "animate.speedHalf", "animate.speedNormal", "animate.speedDouble", "animate.loopOnce", "animate.loopRepeat", "animate.loopPingPong", "animate.resetPlayhead", "animate.onion", "animate.preview" ]
+      , [ "animate.addKey", "animate.removeKeys", "animate.autoKey", "-", "animate.copyKeys", "animate.pasteKeys", "animate.reverse", "animate.shiftLeft", "animate.shiftRight", "animate.scaleUp", "animate.scaleDown", "animate.distribute", "-", "animate.hold", "animate.linear", "animate.easeIn", "animate.easeOut", "animate.easeInOut", "animate.spring", "-", "animate.setWorkRange", "animate.rangeStart", "animate.rangeEnd", "animate.clearWorkRange", "animate.stagger", "-", "animate.play", "animate.reversePlay", "animate.speedHalf", "animate.speedNormal", "animate.speedDouble", "animate.loopOnce", "animate.loopRepeat", "animate.loopPingPong", "animate.resetPlayhead", "animate.onion", "animate.preview" ]
       )
     , ( "Window"
       , [ "window.layers", "window.assets", "window.scenes", "window.inspector", "window.timeline", "window.history", "window.exportQueue", "-", "window.timelineFocus", "window.canvasFocus", "window.palette", "-", "window.resetLayout" ]
@@ -564,8 +619,10 @@ shortcutMatches isMac context ev s =
             else
                 ev.ctrl
 
+        -- Option on a Mac changes the character (Option+[ is “), so with Alt
+        -- held fall back to the physical key
         keyMatches =
-            String.toLower ev.key == String.toLower s.key || (s.key == "Delete" && ev.key == "Backspace")
+            String.toLower ev.key == String.toLower s.key || (s.key == "Delete" && ev.key == "Backspace") || (ev.alt && ev.code /= "" && ev.code == codeFor s.key)
 
         contextOk =
             s.context == "global" || s.context == context

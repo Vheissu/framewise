@@ -401,7 +401,8 @@
       if (!el) return;
       el.setAttribute("transform", matrixString(st.matrix));
       if (st.opacity < 1) el.setAttribute("opacity", num(st.opacity)); else el.removeAttribute("opacity");
-      el.setAttribute("visibility", st.hidden ? "hidden" : "visible");
+      // only ever hide: an explicit "visible" would show a node inside a hidden group
+      if (st.hidden) el.setAttribute("visibility", "hidden"); else el.removeAttribute("visibility");
       var shape = el.firstElementChild;
       if (!shape || node.kind === "group" || node.kind === "clipGroup") return;
       if (shape.tagName === "g") return;

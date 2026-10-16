@@ -7,6 +7,7 @@ module DocumentIO.Decode exposing
     , propertyPath
     , propertyValue
     , scene
+    , span
     , strokeDecoder
     , track
     )
@@ -55,6 +56,21 @@ document =
                         (D.field "scenes" (D.list scene))
                         (optionalField "assets" (D.list asset) [])
                         (D.succeed ())
+            )
+
+
+{-| A layer's in and out points; the out point must come after the in point.
+-}
+span : Decoder Node.Span
+span =
+    D.map2 Node.Span (D.field "in" D.int) (D.field "out" D.int)
+        |> D.andThen
+            (\s ->
+                if s.inFrame < 0 || s.outFrame <= s.inFrame then
+                    D.fail "A layer span needs 0 <= in < out"
+
+                else
+                    D.succeed s
             )
 
 
@@ -214,8 +230,8 @@ node =
                             part1
                                 |> D.andThen
                                     (\p ->
-                                        D.map6
-                                            (\tr fillPaint strokeStyle effects motionAtt importedElementId ->
+                                        D.map7
+                                            (\tr fillPaint strokeStyle effects motionAtt importedElementId layerSpan ->
                                                 { id = p.id
                                                 , name = p.name
                                                 , parentId = p.parentId
@@ -230,6 +246,7 @@ node =
                                                 , effects = effects
                                                 , motion = motionAtt
                                                 , importedElementId = importedElementId
+                                                , span = layerSpan
                                                 }
                                             )
                                             (optionalField "transform" transform Domain.Transform.identity)
@@ -238,6 +255,7 @@ node =
                                             (optionalField "effects" (D.list effect) [])
                                             (optionalField "motion" (D.nullable motionAttachment) Nothing)
                                             (optionalField "metadata" (optionalField "importedElementId" (D.nullable D.string) Nothing) Nothing)
+                                            (optionalField "span" (D.nullable span) Nothing)
                                     )
                         )
             )

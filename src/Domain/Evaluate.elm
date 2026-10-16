@@ -1,6 +1,7 @@
 module Domain.Evaluate exposing
     ( ResolvedNode
     , ResolvedScene
+    , evaluate
     , evaluateNodeProperty
     , evaluateScene
     , resolvedBounds
@@ -149,12 +150,14 @@ resolveNode scene frame parentWorld depth parentHidden node =
                     clamp 0 1 node.opacity
 
         hidden =
-            case valueOf Visible of
-                Just (BoolValue v) ->
-                    not v
+            not (Node.inSpan scene.durationFrames frame node)
+                || (case valueOf Visible of
+                        Just (BoolValue v) ->
+                            not v
 
-                _ ->
-                    node.hidden
+                        _ ->
+                            node.hidden
+                   )
 
         fill =
             case valueOf FillColor of

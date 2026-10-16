@@ -1,5 +1,6 @@
 module App.Model exposing
-    ( Capabilities
+    ( BarEdge(..)
+    , Capabilities
     , ColorTarget(..)
     , ContextMenu
     , ContextTarget(..)
@@ -24,6 +25,7 @@ module App.Model exposing
     , Playback
     , PrefTab(..)
     , Preferences
+    , RangeEdit(..)
     , RecentEntry
     , RecoveryEntry
     , Route(..)
@@ -455,9 +457,27 @@ type Gesture
     | DragAnchor { nodeId : NodeId, subpath : Int, index : Int, original : PathGeometry, start : Vec2, isHandle : Bool, mirror : Bool }
     | PenDragHandle { start : Vec2, current : Vec2 }
     | ScrubPlayhead
+    | DragWorkRange { edit : RangeEdit, pressFrame : Float, originalScene : Scene }
+    | MarqueeKeys { startFrame : Float, startY : Float, currentFrame : Float, currentY : Float, base : List KeyRef }
+    | DragLayerBar { nodeIds : List NodeId, edge : BarEdge, startFrame : Float, delta : Int, originalScene : Scene }
     | DragKeys { keys : List ( TrackId, KeyframeId, Int ), startFrame : Float, delta : Int, originalScene : Scene }
     | DragSplitter { which : String, start : Float, original : Float }
     | DragLayer { nodeId : NodeId }
+
+
+{-| What a drag on the work area strip changes: one end follows the pointer
+while the other stays at the given frame, or the whole range slides with the
+pointer from the frame where it was grabbed.
+-}
+type BarEdge
+    = BarBody
+    | BarIn
+    | BarOut
+
+
+type RangeEdit
+    = RangeFrom Int
+    | RangeSlide { start : Int, end : Int, grab : Int }
 
 
 type alias PenDraft =
@@ -500,6 +520,8 @@ type alias EditorState =
     , hover : Maybe NodeId
     , canvasRect : { left : Float, top : Float, width : Float, height : Float }
     , timelineRect : { left : Float, top : Float, width : Float, height : Float }
+    , timelinePointer : { x : Float, y : Float, shift : Bool }
+    , showFilmstrip : Bool
     , spaceHeld : Bool
     , penDraft : Maybe PenDraft
     , playback : Playback
@@ -547,6 +569,8 @@ defaultEditor prefs =
     , hover = Nothing
     , canvasRect = { left = 0, top = 0, width = 800, height = 600 }
     , timelineRect = { left = 0, top = 0, width = 800, height = 200 }
+    , timelinePointer = { x = 0, y = 0, shift = False }
+    , showFilmstrip = True
     , spaceHeld = False
     , penDraft = Nothing
     , playback = { playing = False, startTime = 0, startFrame = 0, speed = 1, reverse = False, loopOverride = Nothing }

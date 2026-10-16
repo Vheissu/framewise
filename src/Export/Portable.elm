@@ -1,4 +1,4 @@
-module Export.Portable exposing (encode, version)
+module Export.Portable exposing (encode, markupScene, version)
 
 {-| The versioned portable animation JSON consumed by the Framewise player.
 It is a subset of the native document: one scene, its nodes in paint order,
@@ -9,8 +9,23 @@ Elm evaluator share golden fixtures (see tests/golden).
 import Dict
 import DocumentIO.Encode as Encode
 import Domain.Node exposing (Node)
+import Domain.Property
 import Domain.Scene as Scene exposing (Scene)
+import Export.Spans as Spans
 import Json.Encode as E
+
+
+{-| The scene to render as the player's starting markup: every node present
+and visible, because the static renderer leaves hidden nodes out and the
+player can only show elements that exist. The player applies the real
+visibility (including layer spans) from the animation on its first frame.
+-}
+markupScene : Scene -> Scene
+markupScene scene =
+    { scene
+        | nodes = Dict.map (\_ n -> { n | hidden = False, span = Nothing }) scene.nodes
+        , tracks = Dict.filter (\_ t -> t.target.property /= Domain.Property.Visible) scene.tracks
+    }
 
 
 version : Int
@@ -19,7 +34,12 @@ version =
 
 
 encode : Scene -> E.Value
-encode scene =
+encode unbaked =
+    let
+        -- the player knows visibility keys, not layer spans
+        scene =
+            Spans.bake unbaked
+    in
     E.object
         [ ( "version", E.int version )
         , ( "scene"

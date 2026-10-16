@@ -201,6 +201,9 @@ paths name =
         "magnet" ->
             [ Svg.path [ A.d "M4 3 V8 a4 4 0 0 0 8 0 V3 M4 3 H6.5 V8 a1.5 1.5 0 0 0 3 0 V3 H12" ] [] ]
 
+        "film" ->
+            [ Svg.path [ A.d "M2.5 3.5 H13.5 V12.5 H2.5 Z M5 3.5 V12.5 M11 3.5 V12.5 M2.5 6.5 H5 M2.5 9.5 H5 M11 6.5 H13.5 M11 9.5 H13.5" ] [] ]
+
         "layers" ->
             [ Svg.path [ A.d "M8 2.5 L14 5.5 L8 8.5 L2 5.5 Z M3 8.5 L8 11 L13 8.5 M3 11.2 L8 13.7 L13 11.2" ] [] ]
 

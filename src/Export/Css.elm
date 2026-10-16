@@ -10,6 +10,7 @@ to skip affected tracks.
 import Dict
 import Domain.Color as Color
 import Domain.Document exposing (Document)
+import Domain.Easing
 import Domain.Evaluate as Evaluate
 import Domain.Fps as Fps
 import Domain.Keyframe exposing (Track)
@@ -19,6 +20,7 @@ import Domain.Scene as Scene exposing (PlaybackMode(..), Scene)
 import Export.Animated as Animated exposing (Channel(..))
 import Export.Capability as Capability
 import Export.Format
+import Export.Spans as Spans
 import Export.Timing as Timing
 import Render.SvgDoc as Svg exposing (Element)
 
@@ -38,8 +40,12 @@ defaultOptions =
 
 
 export : Options -> Document -> Scene -> Result String { svg : String, css : String, report : Capability.Report }
-export options doc scene =
+export options doc unbaked =
     let
+        -- layer in and out points become visibility keys
+        scene =
+            Spans.bake unbaked
+
         report =
             Capability.report Export.Format.SvgCss scene
     in
@@ -243,8 +249,16 @@ propertyRule ctx _ elementId property format track =
         discreteProp =
             property == "visibility"
 
+        -- discrete values step at their keys whatever the easing says
+        planned =
+            if discreteProp then
+                { track | keyframes = List.map (\k -> { k | easing = Domain.Easing.Linear }) track.keyframes }
+
+            else
+                track
+
         frames =
-            case Timing.planTrack False n track of
+            case Timing.planTrack False n planned of
                 Timing.Native keys ->
                     List.indexedMap
                         (\i k ->

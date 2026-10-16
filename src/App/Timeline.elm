@@ -1,20 +1,33 @@
 module App.Timeline exposing
     ( addKeyAtPlayhead
     , applyStagger
+    , autoScroll
+    , barDown
     , copyKeys
     , distributeKeys
+    , edgeOverflow
+    , filmstripHeight
     , frameAtX
+    , isTimelineGesture
     , keyPointerDown
+    , lanesDown
+    , lanesTop
     , pasteKeys
     , playbackRange
     , pointerMove
     , pointerUp
+    , rangeDown
+    , rangeStripHeight
     , removeSelectedKeys
     , reverseKeys
+    , rowHeight
+    , rows
     , rulerDown
+    , rulerHeight
     , scaleKeys
     , setKeyEasing
     , setPlayhead
+    , setRangeEdgeAtPlayhead
     , shiftKeys
     , tick
     , timeOrigin
@@ -38,12 +51,14 @@ import Domain.Easing as Easing exposing (Easing)
 import Domain.Evaluate as Evaluate
 import Domain.Fps as Fps
 import Domain.Keyframe as Keyframe exposing (Track)
+import Domain.LayerTime as LayerTime
 import Domain.Loop as Loop
-import Domain.Node as Node
+import Domain.Node as Node exposing (Node)
 import Domain.Property as Property exposing (PropertyPath(..), PropertyValue(..))
 import Domain.Scene as Scene exposing (Scene)
 import Json.Decode as D
 import Json.Encode as E
+import Set
 import Shared.Ids exposing (NodeId)
 import Time
 
@@ -748,16 +763,26 @@ applyStagger form model =
 rulerDown : PointerEvent -> Model -> Update
 rulerDown ev model =
     let
-        frame =
-            frameAtX model ev.clientX
+        editor0 =
+            model.editor
 
         stopped =
             Edit.endPlayback model
 
         e2 =
             stopped.editor
+
+        pointer =
+            { x = ev.clientX, y = ev.clientY, shift = ev.shift }
+
+        scrubbing =
+            { stopped | editor = { e2 | gesture = ScrubPlayhead, focus = Model.TimelineFocus, timelinePointer = pointer } }
     in
-    pure (setPlayhead (snapFrame model frame) { stopped | editor = { e2 | gesture = ScrubPlayhead, focus = Model.TimelineFocus } })
+    if ev.button /= 0 then
+        pure { model | editor = { editor0 | focus = Model.TimelineFocus } }
+
+    else
+        pure (setPlayhead (scrubFrame scrubbing pointer) scrubbing)
 
 
 snapFrame : Model -> Float -> Float
@@ -767,6 +792,251 @@ snapFrame model frame =
 
     else
         frame
+
+
+{-| The frame under the pointer while scrubbing. Shift pulls the playhead onto
+a nearby keyframe, the scene ends or the work range edges, the way desktop
+motion tools snap the current time indicator.
+-}
+scrubFrame : Model -> { x : Float, y : Float, shift : Bool } -> Float
+scrubFrame model pointer =
+    let
+        raw =
+            frameAtX model pointer.x
+    in
+    if pointer.shift then
+        nearestMark model raw |> Maybe.withDefault (snapFrame model raw)
+
+    else
+        snapFrame model raw
+
+
+nearestMark : Model -> Float -> Maybe Float
+nearestMark model frame =
+    nearestMarkWith [] model frame
+
+
+nearestMarkWith : List Int -> Model -> Float -> Maybe Float
+nearestMarkWith extra model frame =
+    case Model.activeScene model of
+        Nothing ->
+            Nothing
+
+        Just scene ->
+            let
+                reach =
+                    8 / (Model.activeView model).timelinePixelsPerFrame
+
+                ( ws, we ) =
+                    playbackRange scene
+
+                marks =
+                    extra
+                        ++ 0
+                        :: scene.durationFrames
+                        :: ws
+                        :: we
+                        :: List.concatMap (.keyframes >> List.map .frame) (Dict.values scene.tracks)
+            in
+            marks
+                |> List.map toFloat
+                |> List.filter (\m -> abs (m - frame) <= reach)
+                |> List.sortBy (\m -> abs (m - frame))
+                |> List.head
+
+
+{-| Press on the work area strip above the ruler. Near an existing edge it
+trims that edge, inside the range it slides the range, and anywhere else it
+starts a new range.
+-}
+rangeDown : PointerEvent -> Model -> Update
+rangeDown ev model =
+    case Model.activeScene model of
+        Nothing ->
+            pure model
+
+        Just scene ->
+            let
+                editor =
+                    model.editor
+
+                pressFrame =
+                    frameAtX model ev.clientX
+
+                frame =
+                    clamp 0 scene.durationFrames (round pressFrame)
+
+                reach =
+                    6 / (Model.activeView model).timelinePixelsPerFrame
+
+                edit =
+                    case scene.workRange of
+                        Just _ ->
+                            let
+                                ( ws, we ) =
+                                    playbackRange scene
+                            in
+                            if abs (pressFrame - toFloat ws) <= reach then
+                                Model.RangeFrom we
+
+                            else if abs (pressFrame - toFloat we) <= reach then
+                                Model.RangeFrom ws
+
+                            else if pressFrame > toFloat ws && pressFrame < toFloat we then
+                                Model.RangeSlide { start = ws, end = we, grab = frame }
+
+                            else
+                                Model.RangeFrom frame
+
+                        Nothing ->
+                            Model.RangeFrom frame
+
+                focused =
+                    { model | editor = { editor | focus = Model.TimelineFocus, timelinePointer = { x = ev.clientX, y = ev.clientY, shift = ev.shift } } }
+            in
+            if ev.button /= 0 then
+                pure focused
+
+            else
+                let
+                    e2 =
+                        focused.editor
+                in
+                pure (Edit.beginGesture { focused | editor = { e2 | gesture = DragWorkRange { edit = edit, pressFrame = pressFrame, originalScene = scene } } })
+
+
+{-| Press on the empty part of the track lanes: rubber-band keyframes. Shift
+adds to the current key selection.
+-}
+lanesDown : PointerEvent -> Model -> Update
+lanesDown ev model =
+    let
+        editor =
+            model.editor
+
+        base =
+            if ev.shift then
+                editor.selectedKeys
+
+            else
+                []
+
+        frame =
+            frameAtX model ev.clientX
+
+        y =
+            ev.clientY - editor.timelineRect.top
+
+        focused =
+            { model
+                | editor = { editor | focus = Model.TimelineFocus, timelinePointer = { x = ev.clientX, y = ev.clientY, shift = ev.shift } }
+                , openMenu = Nothing
+                , contextMenu = Nothing
+            }
+
+        e2 =
+            focused.editor
+    in
+    if ev.button /= 0 then
+        pure focused
+
+    else
+        pure { focused | editor = { e2 | selectedKeys = base, gesture = MarqueeKeys { startFrame = frame, startY = y, currentFrame = frame, currentY = y, base = base } } }
+
+
+{-| Press on a layer bar: the body moves the selected layers in time, the
+ends trim their in or out points. Pressing an unselected layer selects it
+first (Shift adds it).
+-}
+barDown : NodeId -> Model.BarEdge -> PointerEvent -> Model -> Update
+barDown nodeId edge ev model =
+    case Model.activeScene model of
+        Nothing ->
+            pure model
+
+        Just scene ->
+            let
+                editor =
+                    model.editor
+
+                current =
+                    Edit.selection model
+
+                selection =
+                    if List.member nodeId current then
+                        current
+
+                    else if ev.shift then
+                        current ++ [ nodeId ]
+
+                    else
+                        [ nodeId ]
+
+                -- a layer inside another selected layer moves with its parent
+                topLevel =
+                    List.filter (\id -> not (List.any (\other -> other /= id && Scene.isAncestorOf other id scene) selection)) selection
+
+                nodeIds =
+                    nodeId :: List.filter ((/=) nodeId) topLevel
+
+                selected =
+                    Edit.mapActiveView (\v -> { v | selection = selection })
+                        { model
+                            | editor = { editor | focus = Model.TimelineFocus, selectedKeys = [], timelinePointer = { x = ev.clientX, y = ev.clientY, shift = ev.shift } }
+                            , openMenu = Nothing
+                            , contextMenu = Nothing
+                        }
+
+                e2 =
+                    selected.editor
+            in
+            if ev.button /= 0 then
+                pure selected
+
+            else
+                pure (Edit.beginGesture { selected | editor = { e2 | gesture = DragLayerBar { nodeIds = nodeIds, edge = edge, startFrame = frameAtX model ev.clientX, delta = 0, originalScene = scene } } })
+
+
+{-| With Shift held, pull the dragged edge (or either end of a moving layer)
+onto the playhead, a keyframe or a range end when one is near.
+-}
+snapBarDelta : Model -> { a | nodeIds : List NodeId, edge : Model.BarEdge, originalScene : Scene } -> Float -> Int
+snapBarDelta model g raw =
+    case g.nodeIds of
+        grabbed :: _ ->
+            let
+                span =
+                    LayerTime.spanOf g.originalScene grabbed
+
+                edges =
+                    case g.edge of
+                        Model.BarBody ->
+                            [ span.inFrame, span.outFrame ]
+
+                        Model.BarIn ->
+                            [ span.inFrame ]
+
+                        Model.BarOut ->
+                            [ span.outFrame ]
+
+                playhead =
+                    round (Edit.currentFrame model)
+
+                candidates =
+                    edges
+                        |> List.filterMap
+                            (\e ->
+                                nearestMarkWith [ playhead ] model (toFloat e + raw)
+                                    |> Maybe.map (\m -> round m - e)
+                            )
+            in
+            candidates
+                |> List.sortBy (\d -> abs (toFloat d - raw))
+                |> List.head
+                |> Maybe.withDefault (round raw)
+
+        [] ->
+            round raw
 
 
 keyPointerDown : KeyRef -> PointerEvent -> Model -> Update
@@ -807,7 +1077,7 @@ keyPointerDown ref ev model =
                             )
 
                 withSelection =
-                    { model | editor = { editor | selectedKeys = newSel, focus = Model.TimelineFocus } }
+                    { model | editor = { editor | selectedKeys = newSel, focus = Model.TimelineFocus, timelinePointer = { x = ev.clientX, y = ev.clientY, shift = ev.shift } } }
 
                 -- selecting a key also selects its node so the inspector follows
                 nodeId =
@@ -836,16 +1106,161 @@ keyPointerDown ref ev model =
                 pure (Edit.beginGesture { withNode | editor = { e2 | gesture = DragKeys { keys = keys, startFrame = frameAtX model ev.clientX, delta = 0, originalScene = scene } } })
 
 
-pointerMove : Float -> Model -> Update
-pointerMove clientX model =
+{-| True while a timeline drag owns the pointer, so window-level moves and
+releases are routed here rather than to the canvas.
+-}
+isTimelineGesture : Model -> Bool
+isTimelineGesture model =
     case model.editor.gesture of
         ScrubPlayhead ->
-            pure (setPlayhead (snapFrame model (frameAtX model clientX)) model)
+            True
+
+        DragWorkRange _ ->
+            True
+
+        MarqueeKeys _ ->
+            True
+
+        DragKeys _ ->
+            True
+
+        DragLayerBar _ ->
+            True
+
+        _ ->
+            False
+
+
+pointerMove : { x : Float, y : Float, shift : Bool } -> Model -> Update
+pointerMove pointer model0 =
+    let
+        editor0 =
+            model0.editor
+
+        model =
+            { model0 | editor = { editor0 | timelinePointer = pointer } }
+    in
+    case model.editor.gesture of
+        ScrubPlayhead ->
+            pure (setPlayhead (scrubFrame model pointer) model)
+
+        DragWorkRange g ->
+            let
+                duration =
+                    g.originalScene.durationFrames
+
+                raw =
+                    if pointer.shift then
+                        nearestMark model (frameAtX model pointer.x) |> Maybe.withDefault (frameAtX model pointer.x)
+
+                    else
+                        frameAtX model pointer.x
+
+                frame =
+                    clamp 0 duration (round raw)
+
+                range =
+                    case g.edit of
+                        Model.RangeFrom fixed ->
+                            if frame == fixed then
+                                g.originalScene.workRange
+
+                            else
+                                Just { start = min fixed frame, end = max fixed frame }
+
+                        Model.RangeSlide r ->
+                            let
+                                length =
+                                    r.end - r.start
+
+                                start =
+                                    clamp 0 (duration - length) (r.start + frame - r.grab)
+                            in
+                            Just { start = start, end = start + length }
+            in
+            case Model.activeDoc model of
+                Just open ->
+                    pure
+                        (Edit.transient
+                            (\_ ->
+                                Document.setScene
+                                    (let
+                                        original =
+                                            g.originalScene
+                                     in
+                                     { original | workRange = range }
+                                    )
+                                    (Maybe.withDefault open.document model.editor.gestureOrigin)
+                            )
+                            model
+                        )
+
+                Nothing ->
+                    pure model
+
+        MarqueeKeys g ->
+            let
+                editor =
+                    model.editor
+
+                moved =
+                    { g | currentFrame = frameAtX model pointer.x, currentY = pointer.y - editor.timelineRect.top }
+
+                inside =
+                    keysInMarquee model moved
+
+                selection =
+                    g.base ++ List.filter (\r -> not (List.member r g.base)) inside
+            in
+            pure { model | editor = { editor | gesture = MarqueeKeys moved, selectedKeys = selection } }
+
+        DragLayerBar g ->
+            let
+                raw =
+                    frameAtX model pointer.x - g.startFrame
+
+                delta =
+                    if pointer.shift then
+                        snapBarDelta model g raw
+
+                    else
+                        round raw
+
+                scene =
+                    g.originalScene
+
+                moved =
+                    case g.edge of
+                        Model.BarBody ->
+                            LayerTime.shift g.nodeIds (clamp (LayerTime.minShift g.nodeIds scene) (max 0 (LayerTime.maxShift g.nodeIds scene)) delta) scene
+
+                        Model.BarIn ->
+                            List.foldl (LayerTime.trimEdge True delta) scene g.nodeIds
+
+                        Model.BarOut ->
+                            List.foldl (LayerTime.trimEdge False delta) scene g.nodeIds
+
+                editor =
+                    model.editor
+            in
+            if delta == g.delta then
+                pure model
+
+            else
+                case Model.activeDoc model of
+                    Just open ->
+                        pure
+                            (Edit.transient (\_ -> Document.setScene moved (Maybe.withDefault open.document editor.gestureOrigin))
+                                { model | editor = { editor | gesture = DragLayerBar { g | delta = delta } } }
+                            )
+
+                    Nothing ->
+                        pure model
 
         DragKeys g ->
             let
                 delta =
-                    round (frameAtX model clientX - g.startFrame)
+                    round (frameAtX model pointer.x - g.startFrame)
 
                 -- never drag a key before frame 0
                 minFrame =
@@ -878,6 +1293,50 @@ pointerMove clientX model =
             pure model
 
 
+keysInMarquee : Model -> { a | startFrame : Float, startY : Float, currentFrame : Float, currentY : Float } -> List KeyRef
+keysInMarquee model g =
+    case Model.activeScene model of
+        Nothing ->
+            []
+
+        Just scene ->
+            let
+                ppf =
+                    (Model.activeView model).timelinePixelsPerFrame
+
+                -- half a key diamond, so touching a key's edge picks it
+                slack =
+                    4.5
+
+                ( x0, x1 ) =
+                    ( min g.startFrame g.currentFrame * ppf - slack, max g.startFrame g.currentFrame * ppf + slack )
+
+                ( y0, y1 ) =
+                    ( min g.startY g.currentY - slack, max g.startY g.currentY + slack )
+            in
+            rows model scene
+                |> List.indexedMap
+                    (\i row ->
+                        let
+                            centre =
+                                lanesTop model + (toFloat i + 0.5) * rowHeight
+                        in
+                        case ( row.track, row.property ) of
+                            ( Just track, Just _ ) ->
+                                if centre >= y0 && centre <= y1 then
+                                    track.keyframes
+                                        |> List.filter (\k -> toFloat k.frame * ppf >= x0 && toFloat k.frame * ppf <= x1)
+                                        |> List.map (\k -> { trackId = track.id, keyId = k.id })
+
+                                else
+                                    []
+
+                            _ ->
+                                []
+                    )
+                |> List.concat
+
+
 pointerUp : Model -> Update
 pointerUp model =
     let
@@ -888,6 +1347,22 @@ pointerUp model =
         ScrubPlayhead ->
             pure { model | editor = { editor | gesture = NoGesture } }
 
+        DragWorkRange g ->
+            let
+                unchanged =
+                    Maybe.map2 (\origin open -> origin == open.document) editor.gestureOrigin (Model.activeDoc model)
+                        |> Maybe.withDefault True
+            in
+            if unchanged then
+                -- a click on the strip without dragging moves the playhead there
+                pure (setPlayhead (snapFrame model g.pressFrame) (Edit.cancelGesture model))
+
+            else
+                Edit.commitGesture "Work range" model
+
+        MarqueeKeys _ ->
+            pure { model | editor = { editor | gesture = NoGesture } }
+
         DragKeys g ->
             if g.delta == 0 then
                 pure (Edit.cancelGesture model)
@@ -895,5 +1370,216 @@ pointerUp model =
             else
                 Edit.commitGesture "Move keyframes" model
 
+        DragLayerBar g ->
+            if g.delta == 0 then
+                pure (Edit.cancelGesture model)
+
+            else
+                Edit.commitGesture (iif (g.edge == Model.BarBody) "Move layer" "Trim layer") model
+
         _ ->
             pure model
+
+
+{-| How far the pointer is past the left or right edge of the track area
+during a timeline drag, in pixels; zero while it is inside.
+-}
+edgeOverflow : Model -> Float
+edgeOverflow model =
+    let
+        p =
+            model.editor.timelinePointer
+
+        rect =
+            model.editor.timelineRect
+    in
+    if not (isTimelineGesture model) then
+        0
+
+    else if p.x < rect.left then
+        p.x - rect.left
+
+    else if p.x > rect.left + rect.width then
+        p.x - (rect.left + rect.width)
+
+    else
+        0
+
+
+{-| Scroll the track area while a drag holds the pointer past its edge, then
+replay the pointer so the playhead, range or keys follow the new view. The
+speed grows with the distance past the edge.
+-}
+autoScroll : Float -> Model -> Update
+autoScroll dt model =
+    case Model.activeScene model of
+        Nothing ->
+            pure model
+
+        Just scene ->
+            let
+                over =
+                    edgeOverflow model
+
+                view =
+                    Model.activeView model
+
+                maxScroll =
+                    max 0 (toFloat scene.durationFrames * view.timelinePixelsPerFrame + 2 * timeOrigin - model.editor.timelineRect.width)
+
+                scroll =
+                    clamp 0 maxScroll (view.timelineScroll + clamp -60 60 (over * dt / 60))
+            in
+            if over == 0 || scroll == view.timelineScroll then
+                pure model
+
+            else
+                pointerMove model.editor.timelinePointer (Edit.mapActiveView (\v -> { v | timelineScroll = scroll }) model)
+
+
+{-| Move one end of the work range to the playhead (B for the start, N for the
+end, as in After Effects). The other end stays put unless it would cross.
+-}
+setRangeEdgeAtPlayhead : Bool -> Model -> Update
+setRangeEdgeAtPlayhead isStart model =
+    case Model.activeScene model of
+        Nothing ->
+            pure model
+
+        Just scene ->
+            let
+                duration =
+                    scene.durationFrames
+
+                frame =
+                    clamp 0 duration (round (Edit.currentFrame model))
+
+                ( ws, we ) =
+                    playbackRange scene
+
+                range =
+                    if isStart then
+                        let
+                            start =
+                                min frame (duration - 1)
+                        in
+                        { start = start, end = max we (start + 1) }
+
+                    else
+                        let
+                            end =
+                                max frame 1
+                        in
+                        { start = min ws (end - 1), end = end }
+            in
+            Edit.commit
+                (iif isStart "Set work range start" "Set work range end")
+                (Document.updateScene scene.id (\s -> { s | workRange = Just range }))
+                model
+
+
+iif : Bool -> a -> a -> a
+iif c a b =
+    if c then
+        a
+
+    else
+        b
+
+
+
+-- ROWS
+
+
+{-| Height of the ruler: the work area strip on top, frame numbers below. The
+track list header matches it so the rows line up.
+-}
+rulerHeight : Float
+rulerHeight =
+    rangeStripHeight + 22
+
+
+rangeStripHeight : Float
+rangeStripHeight =
+    9
+
+
+filmstripHeight : Float
+filmstripHeight =
+    40
+
+
+{-| Where the first track lane starts below the top of the track area: the
+ruler, plus the filmstrip when it is shown.
+-}
+lanesTop : Model -> Float
+lanesTop model =
+    if model.editor.showFilmstrip then
+        rulerHeight + filmstripHeight
+
+    else
+        rulerHeight
+
+
+rowHeight : Float
+rowHeight =
+    22
+
+
+type alias Row =
+    { node : Node
+    , property : Maybe PropertyPath
+    , track : Maybe Track
+    , depth : Int
+    }
+
+
+{-| Timeline rows: every animated node plus the current selection, each
+followed by one row per animated (or, with "show all", animatable) property.
+-}
+rows : Model -> Scene -> List Row
+rows model scene =
+    let
+        e =
+            model.editor
+
+        sel =
+            (Model.activeView model).selection
+
+        animatedIds =
+            Dict.values scene.tracks |> List.map (.target >> .nodeId) |> Set.fromList
+
+        candidates =
+            Scene.flattenOrder scene
+                |> List.filter (\id -> Set.member id animatedIds || List.member id sel)
+                |> List.filterMap (\id -> Dict.get id scene.nodes)
+
+        nodeRows node =
+            let
+                tracks =
+                    Scene.tracksFor node.id scene
+
+                props =
+                    if e.showAllProperties && List.member node.id sel then
+                        Node.animatableProperties node
+
+                    else
+                        tracks |> List.map (.target >> .property)
+            in
+            Row node Nothing Nothing 0
+                :: List.map (\p -> Row node (Just p) (tracks |> List.filter (\t -> t.target.property == p) |> List.head) 1) (dedupe props)
+    in
+    List.concatMap nodeRows candidates
+
+
+dedupe : List a -> List a
+dedupe =
+    List.foldl
+        (\x acc ->
+            if List.member x acc then
+                acc
+
+            else
+                acc ++ [ x ]
+        )
+        []

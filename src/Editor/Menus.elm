@@ -172,7 +172,7 @@ contextMenu model menu =
         items =
             case menu.target of
                 CanvasContext (Just _) ->
-                    [ "edit.cut", "edit.copy", "edit.paste", "edit.duplicate", "edit.delete", "-", "object.group", "object.ungroup", "object.clipToShape", "-", "layer.front", "layer.moveUp", "layer.moveDown", "layer.back", "-", "object.convertToPath", "object.flipH", "object.flipV", "-", "edit.rename", "layer.lock", "layer.hide", "layer.isolate", "-", "insert.keyframe", "layer.removeAnimation" ]
+                    [ "edit.cut", "edit.copy", "edit.paste", "edit.duplicate", "edit.delete", "-", "object.group", "object.ungroup", "object.clipToShape", "-", "layer.front", "layer.moveUp", "layer.moveDown", "layer.back", "-", "object.convertToPath", "object.flipH", "object.flipV", "-", "edit.rename", "layer.lock", "layer.hide", "layer.isolate", "-", "insert.keyframe", "layer.removeAnimation", "-", "layer.split", "layer.trimIn", "layer.trimOut" ]
 
                 CanvasContext Nothing ->
                     [ "edit.paste", "edit.pasteInPlace", "edit.selectAll", "-", "view.fitScene", "view.actualSize", "view.grid", "view.rulers", "-", "layer.exitIsolation", "file.sceneSettings" ]

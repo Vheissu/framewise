@@ -106,3 +106,59 @@ describe("player primitives", () => {
     expect(Player.mapFrame("pingpong", 60, 75)).toBe(45);
   });
 });
+
+describe("player visibility", () => {
+  it("hides a group without forcing its children visible", async () => {
+    const { JSDOM } = await import("jsdom");
+    const dom = new JSDOM(
+      '<svg xmlns="http://www.w3.org/2000/svg"><g id="p-node-grp"><g id="p-node-box"><rect width="10" height="10"/></g></g></svg>',
+    );
+    const container = dom.window.document.querySelector("svg")!;
+    const base = goldens.find((g) => g.name.length > 0)!.animation as {
+      scene: Record<string, unknown>;
+      nodes: Array<Record<string, unknown>>;
+    };
+    const box = { ...base.nodes[0]!, id: "box", parentId: "grp" };
+    const group = {
+      ...base.nodes[0]!,
+      id: "grp",
+      name: "grp",
+      kind: "group",
+      childIds: ["box"],
+      geometry: {},
+    };
+    const key = (id: string, frame: number, value: boolean) => ({
+      id,
+      frame,
+      value: { type: "bool", value },
+      easing: { type: "hold" },
+    });
+    const animation = {
+      version: 1,
+      scene: { ...base.scene, durationFrames: 60 },
+      nodes: [group, box],
+      tracks: [
+        {
+          id: "vis",
+          target: { nodeId: "grp", property: "compositing.visible" },
+          enabled: true,
+          locked: false,
+          keyframes: [key("a", 0, false), key("b", 10, true), key("c", 40, false)],
+        },
+      ],
+    };
+    const PlayerWithCreate = Player as unknown as {
+      create(c: Element, a: unknown): { seekFrame(f: number): void };
+    };
+    const player = PlayerWithCreate.create(container, animation);
+    const grp = container.querySelector("#p-node-grp")!;
+    const child = container.querySelector("#p-node-box")!;
+    expect(grp.getAttribute("visibility")).toBe("hidden");
+    expect(child.hasAttribute("visibility")).toBe(false);
+    player.seekFrame(20);
+    expect(grp.hasAttribute("visibility")).toBe(false);
+    expect(child.hasAttribute("visibility")).toBe(false);
+    player.seekFrame(45);
+    expect(grp.getAttribute("visibility")).toBe("hidden");
+  });
+});

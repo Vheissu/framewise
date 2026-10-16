@@ -292,7 +292,7 @@ exportRequest form model =
                                 Err "Some tracks cannot be represented by the player. Choose Skip Affected Tracks to continue."
 
                             else
-                                Static.export { frame = 0, includeBackground = form.includeBackground, includeIds = True, title = title, description = description } doc scene
+                                Static.export { frame = 0, includeBackground = form.includeBackground, includeIds = True, title = title, description = description } (Document.setScene (Portable.markupScene scene) doc) (Portable.markupScene scene)
                                     |> Maybe.map
                                         (\svg ->
                                             Ok

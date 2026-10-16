@@ -24,6 +24,7 @@ import Domain.Scene as Scene exposing (PlaybackMode(..), Scene)
 import Export.Animated as Animated exposing (Channel(..))
 import Export.Capability as Capability
 import Export.Format
+import Export.Spans as Spans
 import Export.Timing as Timing
 import Render.SvgDoc as Svg exposing (Element)
 
@@ -42,8 +43,12 @@ defaultOptions =
 
 
 export : Options -> Document -> Scene -> Result String { svg : String, report : Capability.Report }
-export options doc scene =
+export options doc unbaked =
     let
+        -- layer in and out points become visibility keys
+        scene =
+            Spans.bake unbaked
+
         report =
             Capability.report Export.Format.AnimatedSvg scene
     in

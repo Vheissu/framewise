@@ -7,11 +7,15 @@ module App.Ops exposing
     , duplicateSelection
     , flipSelection
     , groupSelection
+    , moveToPlayhead
     , pasteClipboard
     , reorderSelection
+    , resetLayerSpan
     , resetTransform
     , reversePath
+    , splitLayers
     , toggleClosedPath
+    , trimToPlayhead
     , ungroupSelection
     )
 
@@ -29,6 +33,7 @@ import DocumentIO.Encode as Encode
 import Domain.Document as Document
 import Domain.Evaluate as Evaluate
 import Domain.Keyframe as Keyframe
+import Domain.LayerTime as LayerTime
 import Domain.Matrix as Matrix
 import Domain.Node as Node exposing (Node, NodeGeometry(..))
 import Domain.Path as Path
@@ -296,6 +301,138 @@ ungroupOne resolved group scene =
 -}
 duplicateSelection : Model -> Update
 duplicateSelection model =
+    duplicateNodes { label = "Duplicate", rename = True, adjust = \_ s -> s } (Edit.selection model) model
+
+
+{-| Split the selected layers at the playhead, as After Effects does: each
+layer ends at the playhead and a copy with the same keys starts there,
+placed above it and selected. Layers the playhead is not inside are left
+alone.
+-}
+splitLayers : Model -> Update
+splitLayers model =
+    case Model.activeScene model of
+        Nothing ->
+            pure model
+
+        Just scene ->
+            let
+                frame =
+                    round (Edit.currentFrame model)
+
+                splittable =
+                    topLevel scene (Edit.selection model)
+                        |> List.filter
+                            (\id ->
+                                let
+                                    span =
+                                        LayerTime.spanOf scene id
+                                in
+                                span.inFrame < frame && frame < span.outFrame
+                            )
+
+                adjust idFor s =
+                    List.foldl
+                        (\id acc ->
+                            let
+                                span =
+                                    LayerTime.spanOf scene id
+                            in
+                            acc
+                                |> LayerTime.setSpan id { span | outFrame = frame }
+                                |> LayerTime.setSpan (idFor id) { span | inFrame = frame }
+                        )
+                        s
+                        splittable
+            in
+            if List.isEmpty splittable then
+                pure (Edit.toast "info" "Move the playhead inside a selected layer to split it" model)
+
+            else
+                duplicateNodes { label = "Split layer", rename = False, adjust = adjust } splittable model
+
+
+{-| Apply a timing change to every selected layer at the playhead frame as one
+undo step.
+-}
+layerTimeAtPlayhead : String -> (Int -> NodeId -> Scene -> Scene) -> Model -> Update
+layerTimeAtPlayhead label change model =
+    case Model.activeScene model of
+        Nothing ->
+            pure model
+
+        Just scene ->
+            let
+                frame =
+                    round (Edit.currentFrame model)
+
+                ids =
+                    topLevel scene (Edit.selection model)
+            in
+            if List.isEmpty ids then
+                pure model
+
+            else
+                Edit.commit label (Document.updateScene scene.id (\s -> List.foldl (change frame) s ids)) model
+
+
+{-| Delete the part of the selected layers before (`True`) or after the
+playhead by moving their in or out point to it (Alt+[ and Alt+]).
+-}
+trimToPlayhead : Bool -> Model -> Update
+trimToPlayhead isIn =
+    layerTimeAtPlayhead (iif isIn "Trim in point" "Trim out point")
+        (\frame id s ->
+            let
+                span =
+                    LayerTime.spanOf s id
+            in
+            if frame <= span.inFrame || frame >= span.outFrame then
+                s
+
+            else if isIn then
+                LayerTime.trimEdge True (frame - span.inFrame) id s
+
+            else
+                LayerTime.trimEdge False (frame - span.outFrame) id s
+        )
+
+
+{-| Slide the selected layers, keys included, so their in point (`True`) or
+out point lands on the playhead ([ and ]).
+-}
+moveToPlayhead : Bool -> Model -> Update
+moveToPlayhead isIn =
+    layerTimeAtPlayhead (iif isIn "Move in point to playhead" "Move out point to playhead") (LayerTime.moveEdgeTo isIn)
+
+
+{-| Give the selected layers the whole scene again; keys stay where they are.
+-}
+resetLayerSpan : Model -> Update
+resetLayerSpan =
+    layerTimeAtPlayhead "Reset layer span" (\_ id s -> LayerTime.setSpan id { inFrame = 0, outFrame = s.durationFrames } s)
+
+
+topLevel : Scene -> List NodeId -> List NodeId
+topLevel scene ids =
+    List.filter (\id -> not (List.any (\other -> other /= id && Scene.isAncestorOf other id scene) ids)) ids
+
+
+iif : Bool -> a -> a -> a
+iif c a b =
+    if c then
+        a
+
+    else
+        b
+
+
+{-| Copy nodes (with their descendants and tracks) just above the originals
+and select the copies. `adjust` runs on the scene afterwards with the map
+from original to copied ids, so callers can change both in the same step.
+-}
+duplicateNodes : { label : String, rename : Bool, adjust : (NodeId -> NodeId) -> Scene -> Scene } -> List NodeId -> Model -> Update
+duplicateNodes options ids model =
     case Model.activeScene model of
         Nothing ->
             pure model
@@ -303,8 +440,7 @@ duplicateSelection model =
         Just scene ->
             let
                 sel =
-                    Edit.selection model
-                        |> List.filter (\id -> not (List.any (\other -> other /= id && Scene.isAncestorOf other id scene) (Edit.selection model)))
+                    topLevel scene ids
 
                 allIds =
                     List.concatMap (\id -> id :: Scene.descendants id scene) sel
@@ -363,7 +499,7 @@ duplicateSelection model =
                                                     else
                                                         Maybe.map idFor n.parentId
                                                 , name =
-                                                    if List.member id sel then
+                                                    if List.member id sel && options.rename then
                                                         n.name ++ " copy"
 
                                                     else
@@ -404,11 +540,12 @@ duplicateSelection model =
                                     List.foldl attach withNodes sel
                             in
                             Tuple.first (copyTracks ( attached, remainingIds ))
+                                |> options.adjust idFor
                     in
                     ( doUpdate, List.map idFor sel )
 
                 ( m3, cmd ) =
-                    Edit.commit "Duplicate" (Document.updateScene scene.id update) m2
+                    Edit.commit options.label (Document.updateScene scene.id update) m2
             in
             if List.isEmpty sel then
                 pure model

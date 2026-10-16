@@ -5,7 +5,7 @@ module App.Msg exposing
     , WheelEvent
     )
 
-import App.Model exposing (ColorTarget, ContextTarget, Dialog, Handle, KeyRef, LeftTab, PrefTab, Tool)
+import App.Model exposing (BarEdge, ColorTarget, ContextTarget, Dialog, Handle, KeyRef, LeftTab, PrefTab, Tool)
 import Browser
 import Domain.Color exposing (Rgba)
 import Domain.Easing exposing (Easing)
@@ -119,7 +119,7 @@ type Msg
     | CanvasWheel WheelEvent
     | CanvasRect { left : Float, top : Float, width : Float, height : Float }
     | TimelineRect { left : Float, top : Float, width : Float, height : Float }
-    | WindowPointerMove Float Float Bool
+    | WindowPointerMove Float Float Bool Int
     | WindowPointerUp Float Float
     | KeyDown KeyEvent
     | KeyUp KeyEvent
@@ -222,6 +222,12 @@ type Msg
     | PasteKeys
     | TimelinePointerDown PointerEvent
     | TimelineRulerDown PointerEvent
+    | TimelineRangeDown PointerEvent
+    | LayerBarDown NodeId BarEdge PointerEvent
+    | TimelineLanesDown PointerEvent
+    | TimelineAutoScroll Float
+    | ToggleFilmstrip
+    | SetRangeEdgeAtPlayhead Bool
     | KeyPointerDown KeyRef PointerEvent
     | TimelineZoom Float
     | TimelineScroll Float

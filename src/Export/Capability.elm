@@ -16,9 +16,10 @@ import Dict
 import Domain.Keyframe exposing (Track)
 import Domain.Node exposing (NodeGeometry(..))
 import Domain.Path as Path
-import Domain.Property exposing (PropertyPath(..), PropertyValue(..))
+import Domain.Property as Property exposing (PropertyPath(..), PropertyValue(..))
 import Domain.Scene exposing (PlaybackMode(..), Scene)
 import Export.Format exposing (Format(..))
+import Export.Spans as Spans
 import Export.Timing as Timing
 
 
@@ -58,8 +59,11 @@ statusLabel s =
 
 
 report : Format -> Scene -> Report
-report format scene =
+report format unbaked =
     let
+        scene =
+            Spans.bake unbaked
+
         trackItems =
             Dict.values scene.tracks
                 |> List.filter (\t -> t.enabled && not (List.isEmpty t.keyframes))
@@ -180,12 +184,18 @@ classify format scene track =
                     False
 
         easingStatus requireUnitY =
-            case Timing.planTrack requireUnitY scene.durationFrames track of
-                Timing.Native _ ->
-                    Exact
+            if Property.isDiscrete track.target.property then
+                -- discrete values step at their keys in SMIL and CSS alike, so
+                -- the easing never changes the output
+                Exact
 
-                Timing.BakedPlan _ reason ->
-                    Baked reason
+            else
+                case Timing.planTrack requireUnitY scene.durationFrames track of
+                    Timing.Native _ ->
+                        Exact
+
+                    Timing.BakedPlan _ reason ->
+                        Baked reason
 
         pathCompatible =
             case List.map .value track.keyframes of

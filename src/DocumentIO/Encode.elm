@@ -135,6 +135,13 @@ node n =
                     Nothing ->
                         []
                )
+            ++ (case n.span of
+                    Just s ->
+                        [ ( "span", E.object [ ( "in", E.int s.inFrame ), ( "out", E.int s.outFrame ) ] ) ]
+
+                    Nothing ->
+                        []
+               )
         )
 
 

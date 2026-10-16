@@ -610,27 +610,26 @@ shortcuts model query =
             String.toLower query
 
         commands =
-            Commands.all
-                |> List.filter (\c -> c.shortcut /= Nothing)
-                |> List.filter (\c -> String.isEmpty q || String.contains q (String.toLower (c.label ++ " " ++ c.category)))
+            Commands.bindings
+                |> List.filter (\( c, _ ) -> String.isEmpty q || String.contains q (String.toLower (c.label ++ " " ++ c.category)))
     in
     [ div [ A.class "search-field" ] [ Icons.icon "search", input [ A.type_ "search", A.placeholder "Search shortcuts", A.value query, A.autofocus True, E.onInput ShortcutSearch ] [] ]
     , Html.table [ A.class "shortcut-table" ]
         [ Html.thead [] [ Html.tr [] [ Html.th [] [ text "Command" ], Html.th [] [ text "Category" ], Html.th [] [ text "Shortcut" ], Html.th [] [ text "Context" ] ] ]
         , Html.tbody []
             (List.map
-                (\c ->
+                (\( c, s ) ->
                     Html.tr []
                         [ Html.td [] [ text c.label ]
                         , Html.td [] [ text c.category ]
-                        , Html.td [] [ Html.kbd [] [ text (c.shortcut |> Maybe.map (Commands.shortcutLabel model.isMac) |> Maybe.withDefault "") ] ]
-                        , Html.td [] [ text (c.shortcut |> Maybe.map .context |> Maybe.withDefault "") ]
+                        , Html.td [] [ Html.kbd [] [ text (Commands.shortcutLabel model.isMac s) ] ]
+                        , Html.td [] [ text s.context ]
                         ]
                 )
                 commands
             )
         ]
-    , p [ A.class "hint" ] [ text "Tool letters (V, A, H, Z, P, R, O, L, Y, T, M) apply when the canvas has focus. Space plays when the timeline has focus and pans the canvas while held." ]
+    , p [ A.class "hint" ] [ text "Tool letters (V, A, H, Z, P, R, O, L, Y, T, M) apply when the canvas has focus. Space plays when the timeline has focus and pans the canvas while held. S, Q and W split and trim layers when the timeline has focus." ]
     ]
 
 

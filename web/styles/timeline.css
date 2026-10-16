@@ -99,7 +99,7 @@
 }
 .track-list-header,
 .ruler-row {
-  height: 22px;
+  height: 31px;
   flex: 0 0 auto;
   border-bottom: 1px solid var(--bg-app);
 }
@@ -178,13 +178,22 @@
 .tick {
   position: absolute;
   bottom: 0;
-  height: 22px;
+  height: 21px;
   padding-left: 4px;
   border-left: 1px solid var(--fg-3);
   font-size: 10px;
   color: var(--fg-2);
   font-variant-numeric: tabular-nums;
-  line-height: 18px;
+  line-height: 17px;
+  pointer-events: none;
+}
+.tick-minor {
+  position: absolute;
+  bottom: 0;
+  height: 5px;
+  border-left: 1px solid var(--fg-3);
+  opacity: 0.6;
+  pointer-events: none;
 }
 .end-marker,
 .lane-end {
@@ -196,14 +205,71 @@
 .lane-end {
   opacity: 0.35;
 }
-.work-range {
+.range-strip {
   position: absolute;
   top: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--bg-app);
+  cursor: default;
+}
+.range-bar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  min-width: 2px;
+  background: color-mix(in srgb, var(--accent) 45%, var(--bg-0));
+  cursor: grab;
+}
+.range-handle {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 4px;
+  background: var(--accent-strong);
+  cursor: ew-resize;
+}
+.range-handle-start {
+  left: 0;
+}
+.range-handle-end {
+  right: 0;
+}
+.range-shade {
+  position: absolute;
   bottom: 0;
+  background: color-mix(in srgb, var(--bg-app) 45%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+.key-marquee {
+  position: absolute;
+  border: 1px solid var(--accent);
   background: var(--accent-soft);
-  box-shadow:
-    inset 2px 0 0 var(--accent),
-    inset -2px 0 0 var(--accent);
+  pointer-events: none;
+  z-index: 4;
+}
+.filmstrip {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--bg-app);
+  cursor: ew-resize;
+}
+.film-frame {
+  position: absolute;
+  top: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  pointer-events: none;
+}
+.film-frame svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .track-area-rows {
   position: relative;
@@ -222,6 +288,27 @@
   border-radius: 2px;
   background: color-mix(in srgb, currentColor 30%, var(--bg-1));
   box-shadow: inset 0 1px 0 color-mix(in srgb, currentColor 50%, transparent);
+}
+.layer-bar {
+  cursor: grab;
+}
+.bar-trim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+.bar-trim-in {
+  left: 0;
+  border-radius: 2px 0 0 2px;
+}
+.bar-trim-out {
+  right: 0;
+  border-radius: 0 2px 2px 0;
+}
+.layer-bar:hover .bar-trim {
+  background: color-mix(in srgb, currentColor 70%, var(--bg-1));
 }
 .node-lane.selected .layer-bar {
   background: color-mix(in srgb, currentColor 55%, var(--bg-1));
@@ -270,7 +357,6 @@
 }
 .playhead {
   position: absolute;
-  top: 0;
   bottom: 0;
   width: 1px;
   background: var(--accent);
@@ -285,4 +371,31 @@
   height: 16px;
   background: var(--accent);
   clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%);
+}
+.playhead-label {
+  position: absolute;
+  top: 1px;
+  left: 8px;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 10px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* A wider, invisible hit area along the playhead line so it can be grabbed
+   anywhere in the lanes, kept under the keys so they stay clickable. */
+.playhead-grip {
+  position: absolute;
+  bottom: 0;
+  width: 9px;
+  margin-left: -4px;
+  cursor: ew-resize;
+  z-index: 1;
+}
+body:has(.playhead.dragging),
+body:has(.playhead.dragging) * {
+  cursor: ew-resize !important;
 }

@@ -155,9 +155,22 @@ subscriptions model =
                     []
 
                 _ ->
-                    [ Browser.Events.onMouseMove (D.map3 WindowPointerMove (D.field "clientX" D.float) (D.field "clientY" D.float) (D.field "shiftKey" D.bool))
+                    [ Browser.Events.onMouseMove
+                        (D.map4 WindowPointerMove
+                            (D.field "clientX" D.float)
+                            (D.field "clientY" D.float)
+                            (D.field "shiftKey" D.bool)
+                            (D.oneOf [ D.field "buttons" D.int, D.succeed 1 ])
+                        )
                     , Browser.Events.onMouseUp (D.map2 WindowPointerUp (D.field "clientX" D.float) (D.field "clientY" D.float))
                     ]
+
+        autoScrollSub =
+            if Timeline.edgeOverflow model /= 0 then
+                [ Browser.Events.onAnimationFrameDelta TimelineAutoScroll ]
+
+            else
+                []
 
         playbackSub =
             if model.editor.playback.playing then
@@ -180,6 +193,7 @@ subscriptions model =
          , Time.every 30000 ClockNow
          ]
             ++ gestureSubs
+            ++ autoScrollSub
             ++ playbackSub
             ++ toastSub
         )
@@ -633,28 +647,30 @@ update msg model =
                 _ ->
                     pure m2
 
-        WindowPointerMove x y shift ->
+        WindowPointerMove x y shift buttons ->
             case model.editor.gesture of
-                ScrubPlayhead ->
-                    Timeline.pointerMove x model
-
-                DragKeys _ ->
-                    Timeline.pointerMove x model
-
                 DragSplitter g ->
-                    dragSplitter g x y model
+                    if buttons == 0 then
+                        update (WindowPointerUp x y) model
+
+                    else
+                        dragSplitter g x y model
 
                 _ ->
-                    Canvas.pointerMove x y shift model
+                    if Timeline.isTimelineGesture model && buttons == 0 then
+                        -- the release was missed (a quick click can end before the
+                        -- window listener is attached, or the button came up
+                        -- outside the window): finish the drag instead of moving
+                        update (WindowPointerUp x y) model
+
+                    else if Timeline.isTimelineGesture model then
+                        Timeline.pointerMove { x = x, y = y, shift = shift } model
+
+                    else
+                        Canvas.pointerMove x y shift model
 
         WindowPointerUp x y ->
             case model.editor.gesture of
-                ScrubPlayhead ->
-                    Timeline.pointerUp model
-
-                DragKeys _ ->
-                    Timeline.pointerUp model
-
                 DragSplitter _ ->
                     let
                         e =
@@ -666,7 +682,11 @@ update msg model =
                     ( m2, Ports.send (Persist.saveLayoutRequest m2.editor) )
 
                 _ ->
-                    Canvas.pointerUp x y model
+                    if Timeline.isTimelineGesture model then
+                        Timeline.pointerUp model
+
+                    else
+                        Canvas.pointerUp x y model
 
         KeyDown ev ->
             handleKeyDown ev model
@@ -1439,6 +1459,28 @@ update msg model =
 
         TimelineRulerDown ev ->
             Timeline.rulerDown ev model
+
+        TimelineRangeDown ev ->
+            Timeline.rangeDown ev model
+
+        LayerBarDown nodeId edge ev ->
+            Timeline.barDown nodeId edge ev model
+
+        TimelineLanesDown ev ->
+            Timeline.lanesDown ev model
+
+        TimelineAutoScroll dt ->
+            Timeline.autoScroll dt model
+
+        ToggleFilmstrip ->
+            let
+                e =
+                    model.editor
+            in
+            pure { model | editor = { e | showFilmstrip = not e.showFilmstrip } }
+
+        SetRangeEdgeAtPlayhead isStart ->
+            Timeline.setRangeEdgeAtPlayhead isStart model
 
         KeyPointerDown ref ev ->
             Timeline.keyPointerDown ref ev model
@@ -2278,6 +2320,24 @@ runBuiltin commandId model =
 
         "layer.collapseAll" ->
             pure (Edit.mapActiveView (\v -> { v | expanded = Set.empty }) model)
+
+        "layer.split" ->
+            Ops.splitLayers model
+
+        "layer.trimIn" ->
+            Ops.trimToPlayhead True model
+
+        "layer.trimOut" ->
+            Ops.trimToPlayhead False model
+
+        "layer.moveIn" ->
+            Ops.moveToPlayhead True model
+
+        "layer.moveOut" ->
+            Ops.moveToPlayhead False model
+
+        "layer.resetSpan" ->
+            Ops.resetLayerSpan model
 
         "layer.removeAnimation" ->
             commitScene "Remove animation" (\s -> List.foldl Scene.removeTracksFor s (Edit.selection model)) model
@@ -3447,17 +3507,10 @@ handleKeyDown ev model =
                         "canvas"
 
             matching =
-                Commands.all
-                    |> List.filter
-                        (\c ->
-                            case c.shortcut of
-                                Just s ->
-                                    Commands.shortcutMatches model.isMac contextName ev s
-
-                                Nothing ->
-                                    False
-                        )
+                Commands.bindings
+                    |> List.filter (\( _, s ) -> Commands.shortcutMatches model.isMac contextName ev s)
                     |> List.head
+                    |> Maybe.map Tuple.first
         in
         case matching of
             Just cmd ->
